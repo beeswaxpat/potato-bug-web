@@ -1,0 +1,37 @@
+📱 PWA ICONS NEEDED
+
+Before deploying, you need to create app icons for the PWA "Add to Home Screen" feature.
+
+REQUIRED ICONS:
+- icon-32.png (32x32)
+- icon-180.png (180x180) - iOS
+- icon-192.png (192x192) - Android
+- icon-512.png (512x512) - Android
+
+QUICK SOLUTION:
+Use an online icon generator:
+
+1. Go to: https://www.favicon-generator.org/
+2. Upload any image (potato emoji screenshot works!)
+3. Download the generated icons
+4. Rename and place in this /static folder
+
+OR MANUAL:
+1. Create a 512x512 image with:
+   - Deep space blue background (#0a0e1a)
+   - 🥔 emoji or Bitcoin symbol
+   - Neon cyan border
+
+2. Resize to other sizes using:
+   - https://www.iloveimg.com/resize-image
+   - Or any image editor
+
+TEMPORARY WORKAROUND:
+The app will work without icons, but won't have a nice icon when added to home screen.
+You can deploy first and add icons later!
+
+ICON DESIGN SUGGESTIONS:
+- Potato emoji (🥔) on dark background
+- Bitcoin symbol (₿) with neon glow
+- Cyberpunk/neon aesthetic matching v12 theme
+- Keep it simple and recognizable at small sizes
