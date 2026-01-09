@@ -97,11 +97,12 @@
         <div id="weatherModal" class="modal" style="display: none;">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>Set Your Location</h2>
+                    <h2>📍 Set Your Location</h2>
                     <button class="close-btn" id="closeWeather">×</button>
                 </div>
-                <input type="text" id="zipCodeInput" placeholder="Enter zip code" maxlength="10">
-                <button id="saveZipBtn" class="primary-btn">Save</button>
+                <p class="modal-description">Enter your 5-digit zip code to see local weather</p>
+                <input type="text" id="zipCodeInput" placeholder="Enter 5-digit zip code (e.g., 10001)" maxlength="5" pattern="\d{5}">
+                <button id="saveZipBtn" class="primary-btn">Save Weather Location</button>
             </div>
         </div>
 
@@ -112,6 +113,11 @@
                 <span class="user-count" id="userCount">0 online</span>
             </div>
             <div id="chatMessages" class="chat-messages"></div>
+            <div class="chat-interaction-btns">
+                <button id="randomQuoteBtn" class="chat-btn" title="Send random quote">RANDOM</button>
+                <button id="sadEmojiBtn" class="chat-btn emoji-btn" title="Send sad face">😢</button>
+                <button id="rocketEmojiBtn" class="chat-btn emoji-btn" title="Send rocket">🚀</button>
+            </div>
             <div class="chat-input-container">
                 <input type="text" id="chatInput" placeholder="Type a message..." maxlength="200">
                 <button id="sendBtn">Send</button>

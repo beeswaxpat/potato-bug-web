@@ -1,5 +1,5 @@
-// PotatoBugCrypto v12 Web - FULLY FIXED VERSION
-// All bugs resolved, all features working
+// PotatoBugCrypto v12 Web - Enhanced Edition
+// New: 250+ coins, persistent storage, image triggers, chat quotes, fixed Polymarket
 
 // ==================== CONSTANTS ====================
 
@@ -70,7 +70,6 @@ let polymarketData = [];
 let fngIndex = null;
 let btcActualAth = 0;
 let newsHeadlines = [];
-let lastBtcChange = 0;
 
 let quotesEnabled = true;
 let quoteInterval = 3;
@@ -107,12 +106,11 @@ document.addEventListener('DOMContentLoaded', () => {
     setupRoomModal();
 
     canvas = document.getElementById('psychedelicCanvas');
-    if (canvas) {
-        ctx = canvas.getContext('2d');
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-    }
+    ctx = canvas.getContext('2d');
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
+    setupEventListeners();
     detectVizQuality();
     fetchAllCoinsList();
 });
@@ -164,9 +162,6 @@ function joinRoom(roomCode, username) {
     document.getElementById('roomCodeDisplay').textContent = roomCode;
     document.getElementById('settingsRoomCode').textContent = roomCode;
 
-    // Setup event listeners AFTER app container is visible
-    setupEventListeners();
-
     connectWebSocket();
     fetchAllData();
     startDataUpdates();
@@ -175,6 +170,7 @@ function joinRoom(roomCode, username) {
     startChatQuoteRotation();
     updateSelectedCoinsDisplay();
 
+    // Load weather if zip code is saved
     if (userZipCode) {
         fetchWeather();
     }
@@ -304,25 +300,6 @@ function sendChatMessage() {
     }
 }
 
-function sendRandomQuote() {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-        ws.send(JSON.stringify({
-            type: 'fren_bot',
-            message: `🎲 Random Quote: "${quote}"`
-        }));
-    }
-}
-
-function sendEmoji(emoji) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-            type: 'message',
-            message: emoji
-        }));
-    }
-}
-
 // ==================== COIN MANAGEMENT ====================
 
 async function fetchAllCoinsList() {
@@ -433,12 +410,10 @@ function updateSelectedCoinsDisplay() {
 
 function showWeatherModal() {
     document.getElementById('weatherModal').style.display = 'flex';
-    const input = document.getElementById('zipCodeInput');
     if (userZipCode) {
-        input.value = userZipCode;
+        document.getElementById('zipCodeInput').value = userZipCode;
     }
-    input.focus();
-    input.placeholder = "Enter 5-digit zip code";
+    document.getElementById('zipCodeInput').focus();
 }
 
 function hideWeatherModal() {
@@ -447,13 +422,11 @@ function hideWeatherModal() {
 
 function saveZipCode() {
     const zip = document.getElementById('zipCodeInput').value.trim();
-    if (zip && /^\d{5}$/.test(zip)) {
+    if (zip) {
         userZipCode = zip;
         savePersistedData();
         fetchWeather();
         hideWeatherModal();
-    } else {
-        alert('Please enter a valid 5-digit zip code');
     }
 }
 
@@ -461,6 +434,8 @@ async function fetchWeather() {
     if (!userZipCode) return;
 
     try {
+        // Using OpenWeatherMap free API (requires API key, but we'll use wttr.in as free alternative)
+        // wttr.in is a free weather service that doesn't require API key
         const response = await fetch(`https://wttr.in/${userZipCode}?format=j1`);
         const data = await response.json();
 
@@ -476,7 +451,7 @@ async function fetchWeather() {
         updateWeatherDisplay();
     } catch (error) {
         console.error('Error fetching weather:', error);
-        document.getElementById('weatherDisplay').innerHTML = '<p class="weather-prompt">Unable to fetch weather. Please check zip code.</p>';
+        document.getElementById('weatherDisplay').innerHTML = '<p class="weather-prompt">Unable to fetch weather. Check zip code.</p>';
     }
 }
 
@@ -485,6 +460,7 @@ function updateWeatherDisplay() {
 
     const container = document.getElementById('weatherDisplay');
 
+    // Get weather emoji based on condition
     let weatherEmoji = '☀️';
     const condition = weatherData.condition.toLowerCase();
     if (condition.includes('cloud')) weatherEmoji = '☁️';
@@ -544,50 +520,20 @@ async function fetchCoinPrices() {
 
 async function fetchPolymarketOdds() {
     try {
-        // Try primary endpoint
-        const response = await fetch('https://clob.polymarket.com/markets', {
-            headers: {
-                'Accept': 'application/json'
-            }
-        });
-
-        if (!response.ok) throw new Error('Primary failed');
-
+        const response = await fetch('https://gamma-api.polymarket.com/markets?limit=100&active=true');
         const data = await response.json();
 
         polymarketData = data.filter(market =>
-            market.active &&
-            !market.closed &&
             (market.question.toLowerCase().includes('bitcoin') ||
              market.question.toLowerCase().includes('btc') ||
              market.question.toLowerCase().includes('crypto') ||
-             market.question.toLowerCase().includes('ethereum'))
-        ).slice(0, 3);
-
-        if (polymarketData.length > 0) {
-            updatePolymarketDisplay();
-            return;
-        }
-    } catch (error) {
-        console.log('Trying Polymarket fallback...');
-    }
-
-    // Fallback to gamma API
-    try {
-        const response2 = await fetch('https://gamma-api.polymarket.com/markets?limit=100&active=true&closed=false');
-        const data2 = await response2.json();
-
-        polymarketData = data2.filter(market =>
-            (market.question && (
-                market.question.toLowerCase().includes('bitcoin') ||
-                market.question.toLowerCase().includes('crypto') ||
-                market.question.toLowerCase().includes('ethereum')
-            ))
+             market.question.toLowerCase().includes('ethereum')) &&
+            market.active !== false
         ).slice(0, 3);
 
         updatePolymarketDisplay();
-    } catch (error2) {
-        console.error('Polymarket completely failed:', error2);
+    } catch (error) {
+        console.error('Error fetching Polymarket:', error);
         document.getElementById('polymarketOdds').innerHTML = '<p class="loading">Polymarket temporarily unavailable</p>';
     }
 }
@@ -616,38 +562,21 @@ async function fetchNewsHeadlines() {
     if (!newsEnabled) return;
 
     try {
-        // Use Fox Business RSS feed
-        const response = await fetch('https://moxie.foxbusiness.com/google-publisher/markets.xml');
+        const response = await fetch('https://www.coindesk.com/arc/outboundfeeds/rss/');
         const text = await response.text();
 
         const parser = new DOMParser();
         const xml = parser.parseFromString(text, 'text/xml');
         const items = xml.querySelectorAll('item');
 
-        newsHeadlines = Array.from(items).slice(0, 15).map(item => ({
+        newsHeadlines = Array.from(items).slice(0, 10).map(item => ({
             title: item.querySelector('title')?.textContent,
             link: item.querySelector('link')?.textContent
         }));
 
         updateNewsTicker();
     } catch (error) {
-        console.error('Error fetching Fox Business news:', error);
-        // Try alternative crypto news
-        try {
-            const response2 = await fetch('https://cointelegraph.com/rss');
-            const text2 = await response2.text();
-            const xml2 = new DOMParser().parseFromString(text2, 'text/xml');
-            const items2 = xml2.querySelectorAll('item');
-
-            newsHeadlines = Array.from(items2).slice(0, 15).map(item => ({
-                title: item.querySelector('title')?.textContent,
-                link: item.querySelector('link')?.textContent
-            }));
-
-            updateNewsTicker();
-        } catch (error2) {
-            console.error('All news feeds failed:', error2);
-        }
+        console.error('Error fetching news:', error);
     }
 }
 
@@ -660,7 +589,7 @@ function startDataUpdates() {
         setInterval(fetchNewsHeadlines, 600000);
     }
     if (userZipCode) {
-        setInterval(fetchWeather, 600000);
+        setInterval(fetchWeather, 600000); // Update weather every 10 minutes
     }
 }
 
@@ -716,11 +645,6 @@ function updatePolymarketDisplay() {
         let probability = 'N/A';
         if (market.outcomePrices && market.outcomePrices.length > 0) {
             probability = (parseFloat(market.outcomePrices[0]) * 100).toFixed(1) + '%';
-        } else if (market.outcomes && market.outcomes.length > 0) {
-            const yesOutcome = market.outcomes.find(o => o.name === 'Yes');
-            if (yesOutcome && yesOutcome.price) {
-                probability = (yesOutcome.price * 100).toFixed(1) + '%';
-            }
         }
 
         card.innerHTML = `
@@ -759,7 +683,6 @@ function checkMarketConditions() {
 
     const change = btc.price_change_percentage_24h || 0;
     const price = btc.current_price;
-    lastBtcChange = change;
 
     if (fngIndex !== null && fngIndex <= 10) {
         vizMode = 'extreme_fear';
@@ -783,9 +706,6 @@ function checkMarketConditions() {
         vizMode = 'ath';
         showVizOverlay('⚡ ALL TIME HIGH ⚡');
         sendFrenBotMessage('⚡ BITCOIN AT ALL-TIME HIGH! Current: $' + price.toLocaleString());
-    } else if (Math.abs(change) < 2) {
-        vizMode = 'calm'; // New mode for stagnant market
-        hideVizOverlay();
     } else {
         vizMode = 'normal';
         hideVizOverlay();
@@ -815,24 +735,12 @@ function sendFrenBotMessage(message) {
 // ==================== QUOTES IN CHAT ====================
 
 function startChatQuoteRotation() {
-    // Send quote immediately to confirm it works
-    setTimeout(() => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            const quote = QUOTES[0]; // Send first quote
-            ws.send(JSON.stringify({
-                type: 'fren_bot',
-                message: `💬 "${quote}"`
-            }));
-        }
-    }, 5000); // Wait 5 seconds for connection
-
-    // Then every 60 seconds
     setInterval(() => {
         if (ws && ws.readyState === WebSocket.OPEN) {
             const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
             ws.send(JSON.stringify({
                 type: 'fren_bot',
-                message: `💬 "${quote}"`
+                message: `"${quote}"`
             }));
         }
     }, 60000);
@@ -918,10 +826,8 @@ function initVisualization() {
 }
 
 function resizeCanvas() {
-    if (canvas) {
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
-    }
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
 }
 
 function detectVizQuality() {
@@ -933,8 +839,6 @@ function detectVizQuality() {
 function animate() {
     requestAnimationFrame(animate);
 
-    if (!ctx) return;
-
     ctx.fillStyle = COLORS.bg_dark;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -942,7 +846,7 @@ function animate() {
     drawParticles();
     drawBitcoinSymbol();
 
-    if (vizMode !== 'calm' && Math.random() < 0.05 && (vizMode === 'extreme_fear' || vizMode === 'extreme_greed' || vizMode === 'singularity')) {
+    if (Math.random() < 0.05 && (vizMode === 'extreme_fear' || vizMode === 'extreme_greed' || vizMode === 'singularity')) {
         drawLightning();
     }
 
@@ -953,26 +857,11 @@ function drawTunnel() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
-    // Much calmer speed multipliers
-    let speedMultiplier = 0.3; // Default calm
-    let wobble = 15; // Default calm
-
-    if (vizMode === 'singularity') {
-        speedMultiplier = 3;
-        wobble = 50;
-    } else if (vizMode === 'pump' || vizMode === 'ath') {
-        speedMultiplier = 1.2;
-        wobble = 25;
-    } else if (vizMode === 'extreme_fear' || vizMode === 'extreme_greed') {
-        speedMultiplier = 0.8;
-        wobble = 20;
-    } else if (vizMode === 'calm') {
-        speedMultiplier = 0.2;
-        wobble = 10;
-    }
+    const speedMultiplier = vizMode === 'singularity' ? 5 : (vizMode === 'pump' || vizMode === 'ath' ? 2 : 1);
+    const wobble = vizMode === 'singularity' ? 50 : 30;
 
     tunnelSegments.forEach(segment => {
-        segment.z -= 0.04 * speedMultiplier; // Slower base speed
+        segment.z -= 0.08 * speedMultiplier;
         if (segment.z < 0) segment.z = 1;
 
         const scale = 1 - segment.z;
@@ -984,7 +873,7 @@ function drawTunnel() {
         ctx.lineWidth = 2 + scale * 2;
         ctx.stroke();
 
-        segment.rotation += 0.01 * speedMultiplier; // Slower rotation
+        segment.rotation += 0.02 * speedMultiplier;
     });
 }
 
@@ -993,8 +882,8 @@ function drawParticles() {
     const centerY = canvas.height / 2;
 
     particles.forEach(particle => {
-        particle.angle += particle.angularSpeed * 0.005; // Slower
-        particle.z += particle.speed * 0.005; // Slower
+        particle.angle += particle.angularSpeed * 0.01;
+        particle.z += particle.speed * 0.01;
         if (particle.z > 1) particle.z = 0;
 
         const scale = 1 - particle.z;
@@ -1017,13 +906,8 @@ function drawBitcoinSymbol() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
-    let speedMultiplier = 0.5; // Calmer default
-    if (vizMode === 'singularity') speedMultiplier = 5;
-    else if (vizMode === 'ath') speedMultiplier = 3;
-    else if (vizMode === 'pump') speedMultiplier = 2;
-    else if (vizMode === 'calm') speedMultiplier = 0.3;
-
-    btcSymbolAngle += 5 * speedMultiplier * 0.01; // Slower base
+    const speedMultiplier = vizMode === 'singularity' ? 5 : (vizMode === 'ath' ? 3 : (vizMode === 'pump' ? 2 : 1));
+    btcSymbolAngle += 10 * speedMultiplier * 0.01;
 
     const orbitRadius = 75;
     const x = centerX + Math.cos(btcSymbolAngle * Math.PI / 180) * orbitRadius;
@@ -1107,8 +991,6 @@ function getDynamicColor(progress, mode) {
         hue = 0.0;
     } else if (mode === 'ath') {
         hue = 0.14;
-    } else if (mode === 'calm') {
-        hue = 0.5; // Cyan/blue calm
     } else {
         hue = progress;
     }
@@ -1119,32 +1001,23 @@ function getDynamicColor(progress, mode) {
 // ==================== EVENT LISTENERS ====================
 
 function setupEventListeners() {
-    // Chat
     document.getElementById('sendBtn').addEventListener('click', sendChatMessage);
     document.getElementById('chatInput').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendChatMessage();
     });
 
-    // Chat interaction buttons
-    document.getElementById('randomQuoteBtn').addEventListener('click', sendRandomQuote);
-    document.getElementById('sadEmojiBtn').addEventListener('click', () => sendEmoji('😢'));
-    document.getElementById('rocketEmojiBtn').addEventListener('click', () => sendEmoji('🚀'));
-
-    // Add coin
     document.getElementById('addCoinBtn').addEventListener('click', showAddCoinModal);
     document.getElementById('closeAddCoin').addEventListener('click', hideAddCoinModal);
     document.getElementById('coinSearchInput').addEventListener('input', (e) => {
         searchCoins(e.target.value);
     });
 
-    // Theme toggle
     document.getElementById('themeToggle').addEventListener('click', () => {
         document.body.classList.toggle('light-mode');
         const btn = document.getElementById('themeToggle');
         btn.textContent = document.body.classList.contains('light-mode') ? '🌙' : '☀️';
     });
 
-    // Settings modal
     document.getElementById('settingsBtn').addEventListener('click', () => {
         document.getElementById('settingsModal').style.display = 'flex';
     });
@@ -1153,7 +1026,6 @@ function setupEventListeners() {
         document.getElementById('settingsModal').style.display = 'none';
     });
 
-    // Settings controls
     document.getElementById('quotesEnabled').addEventListener('change', (e) => {
         quotesEnabled = e.target.checked;
         savePersistedData();
@@ -1193,7 +1065,6 @@ function setupEventListeners() {
         }
     });
 
-    // Fullscreen viz
     document.getElementById('fullscreenVizBtn').addEventListener('click', () => {
         canvas.requestFullscreen();
     });
