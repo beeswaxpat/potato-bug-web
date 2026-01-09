@@ -18,29 +18,45 @@ const WORD_LIST = [
 
 const QUOTES = [
     "I got a lil goop naimeen",
-    "Buy high, sell low - it's the way",
-    "Not financial advice, but definitely financial advice",
-    "Trust the process",
-    "Zoom out",
-    "This is fine",
-    "Have fun staying poor",
-    "Few understand this",
-    "Probably nothing",
-    "Bullish",
-    "Numbers go up",
-    "Wen moon?",
-    "Just up",
-    "This is the way",
-    "HODL strong",
-    "Panic sells make for great stories",
-    "Be fearful when others are greedy",
-    "Buy the fear, sell the greed",
-    "Dips are gifts",
-    "Volatility is your friend",
-    "Diamond hands don't fold",
-    "Still early",
-    "Stack sats",
-    "Laser eyes activated"
+    "An angel of the Lord came to me in a dream and his name was Obi Wagwom.",
+    "Impossible to not be bullish or even picture a 4 digit price per shmeckle.",
+    "That's the dream of Obi Wigwom.",
+    "But now I see young Jahnakin, I see like Mr. Lounds.",
+    "Wise like count doobie.",
+    "The King of kings",
+    "What time is it?",
+    "Pretty smart for a tanker",
+    "My reputation proceeds me.",
+    "One piece of advice for everyone before we go in there: this could get a little ugly, but whatever you do, just tell the truth. No sugarcoating. Do not change a word of it. No one here is smart enough, including the rocket scientist.",
+    "There are three ways to make a living in this business: be first, be smarter, or cheat.",
+    "If you're first out the door, A that's not called panicking.",
+    "Put the gravy on the mashed potato",
+    "I need to return some video tapes",
+    "Where in the world is Carmen San Diego?",
+    "Dancing around with bonerblue gorillas",
+    "Saucy fingers, livin' like kings!",
+    "M-U-N that spells moon",
+    "Put it in the good spot Patty",
+    "I'm taking all my money and buying rare cheese. Rare Cheese Reserve Crypto!",
+    "Jim Marcell crypto!",
+    "ARE YOU IN OR NOT?",
+    "Idk.",
+    "This is it!",
+    "We are selling to willing buyers at the current fair market price.",
+    "Do you care to know why I'm in this chair with you all? I mean, why I earn the big bucks?",
+    "So urgently in fact probably should've been addressed weeks ago. But that is spilt milk under the bridge.",
+    "ALL YOUR MODELS ARE DESTROYED",
+    "NOT REAL",
+    "REAL",
+    "I'm finished!",
+    "There's a whole ocean of oil under our feet!",
+    "Talk about right place right time hehehehehe",
+    "Some liquor, some women.",
+    "Peach tree dance, Eli.",
+    "Don't be a panickan. -DJT",
+    "I'm here for one reason and one reason alone. I'm here to guess what the music might do a week, a month, a year from now. That's it. Nothing more.",
+    "Speak as you might to a young child. Or a golden retriever. It wasn't brains that brought me here; I assure you that.",
+    "Ecosystem bug in full effect"
 ];
 
 const COLORS = {
@@ -519,7 +535,8 @@ async function fetchAllData() {
         fetchPolymarketOdds(),
         fetchFearGreedIndex(),
         fetchBitcoinATH(),
-        fetchNewsHeadlines()
+        fetchNewsHeadlines(),
+        fetchBreakingNews()
     ]);
 }
 
@@ -544,51 +561,50 @@ async function fetchCoinPrices() {
 
 async function fetchPolymarketOdds() {
     try {
-        // Try primary endpoint
-        const response = await fetch('https://clob.polymarket.com/markets', {
+        // Use Polymarket's public Gamma API with CORS-friendly endpoint
+        console.log('Fetching Polymarket data...');
+
+        const response = await fetch('https://gamma-api.polymarket.com/markets?limit=200&active=true&closed=false', {
+            method: 'GET',
             headers: {
                 'Accept': 'application/json'
             }
         });
 
-        if (!response.ok) throw new Error('Primary failed');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         const data = await response.json();
+        console.log('Polymarket response:', data);
 
-        polymarketData = data.filter(market =>
-            market.active &&
-            !market.closed &&
-            (market.question.toLowerCase().includes('bitcoin') ||
-             market.question.toLowerCase().includes('btc') ||
-             market.question.toLowerCase().includes('crypto') ||
-             market.question.toLowerCase().includes('ethereum'))
-        ).slice(0, 3);
+        // Filter for crypto-related markets
+        const cryptoMarkets = data.filter(market => {
+            if (!market || !market.question) return false;
+            const q = market.question.toLowerCase();
+            return q.includes('bitcoin') || q.includes('btc') || q.includes('crypto') ||
+                   q.includes('ethereum') || q.includes('eth') || q.includes('solana') ||
+                   q.includes('sol') || q.includes('xrp') || q.includes('ripple');
+        });
 
-        if (polymarketData.length > 0) {
+        console.log('Filtered crypto markets:', cryptoMarkets.length);
+
+        if (cryptoMarkets.length > 0) {
+            polymarketData = cryptoMarkets.slice(0, 3);
             updatePolymarketDisplay();
-            return;
+        } else {
+            // If no crypto markets, just show top 3 active markets
+            console.log('No crypto markets found, showing top 3 general markets');
+            polymarketData = data.slice(0, 3);
+            updatePolymarketDisplay();
         }
     } catch (error) {
-        console.log('Trying Polymarket fallback...');
-    }
-
-    // Fallback to gamma API
-    try {
-        const response2 = await fetch('https://gamma-api.polymarket.com/markets?limit=100&active=true&closed=false');
-        const data2 = await response2.json();
-
-        polymarketData = data2.filter(market =>
-            (market.question && (
-                market.question.toLowerCase().includes('bitcoin') ||
-                market.question.toLowerCase().includes('crypto') ||
-                market.question.toLowerCase().includes('ethereum')
-            ))
-        ).slice(0, 3);
-
-        updatePolymarketDisplay();
-    } catch (error2) {
-        console.error('Polymarket completely failed:', error2);
-        document.getElementById('polymarketOdds').innerHTML = '<p class="loading">Polymarket temporarily unavailable</p>';
+        console.error('Polymarket API error:', error);
+        // Show a more helpful error message
+        document.getElementById('polymarketOdds').innerHTML = `
+            <p class="loading">Loading prediction markets...</p>
+            <p class="loading" style="font-size: 10px; margin-top: 5px;">Checking market data...</p>
+        `;
     }
 }
 
@@ -615,39 +631,98 @@ async function fetchBitcoinATH() {
 async function fetchNewsHeadlines() {
     if (!newsEnabled) return;
 
+    let allHeadlines = [];
+
+    // Fetch Fox Business
     try {
-        // Use Fox Business RSS feed
         const response = await fetch('https://moxie.foxbusiness.com/google-publisher/markets.xml');
         const text = await response.text();
-
         const parser = new DOMParser();
         const xml = parser.parseFromString(text, 'text/xml');
         const items = xml.querySelectorAll('item');
 
-        newsHeadlines = Array.from(items).slice(0, 15).map(item => ({
-            title: item.querySelector('title')?.textContent,
+        const foxHeadlines = Array.from(items).slice(0, 8).map(item => ({
+            title: '📺 FOX: ' + item.querySelector('title')?.textContent,
             link: item.querySelector('link')?.textContent
         }));
-
-        updateNewsTicker();
+        allHeadlines.push(...foxHeadlines);
     } catch (error) {
         console.error('Error fetching Fox Business news:', error);
-        // Try alternative crypto news
-        try {
-            const response2 = await fetch('https://cointelegraph.com/rss');
-            const text2 = await response2.text();
-            const xml2 = new DOMParser().parseFromString(text2, 'text/xml');
-            const items2 = xml2.querySelectorAll('item');
+    }
 
-            newsHeadlines = Array.from(items2).slice(0, 15).map(item => ({
+    // Fetch CNBC
+    try {
+        const response = await fetch('https://www.cnbc.com/id/100003114/device/rss/rss.html');
+        const text = await response.text();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(text, 'text/xml');
+        const items = xml.querySelectorAll('item');
+
+        const cnbcHeadlines = Array.from(items).slice(0, 8).map(item => ({
+            title: '📊 CNBC: ' + item.querySelector('title')?.textContent,
+            link: item.querySelector('link')?.textContent
+        }));
+        allHeadlines.push(...cnbcHeadlines);
+    } catch (error) {
+        console.error('Error fetching CNBC news:', error);
+    }
+
+    // Fallback to CoinTelegraph if both fail
+    if (allHeadlines.length === 0) {
+        try {
+            const response = await fetch('https://cointelegraph.com/rss');
+            const text = await response.text();
+            const xml = new DOMParser().parseFromString(text, 'text/xml');
+            const items = xml.querySelectorAll('item');
+
+            allHeadlines = Array.from(items).slice(0, 15).map(item => ({
                 title: item.querySelector('title')?.textContent,
                 link: item.querySelector('link')?.textContent
             }));
-
-            updateNewsTicker();
-        } catch (error2) {
-            console.error('All news feeds failed:', error2);
+        } catch (error) {
+            console.error('All news feeds failed:', error);
         }
+    }
+
+    newsHeadlines = allHeadlines;
+    updateNewsTicker();
+}
+
+async function fetchBreakingNews() {
+    try {
+        // Try to fetch White House news from Fox News Politics RSS
+        const response = await fetch('https://moxie.foxnews.com/google-publisher/politics.xml');
+        const text = await response.text();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(text, 'text/xml');
+        const items = xml.querySelectorAll('item');
+
+        // Look for White House or Trump related news in the first 10 items
+        const whNews = Array.from(items).slice(0, 10).find(item => {
+            const title = item.querySelector('title')?.textContent.toLowerCase() || '';
+            return title.includes('white house') || title.includes('trump') ||
+                   title.includes('president');
+        });
+
+        if (whNews) {
+            const title = whNews.querySelector('title')?.textContent;
+            const link = whNews.querySelector('link')?.textContent;
+
+            const breakingNewsDiv = document.getElementById('breakingNews');
+            const breakingNewsText = document.getElementById('breakingNewsText');
+
+            if (title) {
+                breakingNewsText.innerHTML = `<a href="${link}" target="_blank" style="color: white; text-decoration: underline;">${title}</a>`;
+                breakingNewsDiv.style.display = 'flex';
+
+                // Hide after 30 seconds
+                setTimeout(() => {
+                    breakingNewsDiv.style.display = 'none';
+                }, 30000);
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching breaking news:', error);
     }
 }
 
@@ -658,6 +733,7 @@ function startDataUpdates() {
     setInterval(fetchBitcoinATH, 1800000);
     if (newsEnabled) {
         setInterval(fetchNewsHeadlines, 600000);
+        setInterval(fetchBreakingNews, 300000); // Check for breaking news every 5 minutes
     }
     if (userZipCode) {
         setInterval(fetchWeather, 600000);
@@ -953,26 +1029,26 @@ function drawTunnel() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
-    // Much calmer speed multipliers
-    let speedMultiplier = 0.3; // Default calm
-    let wobble = 15; // Default calm
+    // MUCH SLOWER speed multipliers (50% of previous speeds)
+    let speedMultiplier = 0.15; // Default calm (was 0.3)
+    let wobble = 8; // Default calm (was 15)
 
     if (vizMode === 'singularity') {
-        speedMultiplier = 3;
-        wobble = 50;
+        speedMultiplier = 1.5; // Was 3
+        wobble = 25; // Was 50
     } else if (vizMode === 'pump' || vizMode === 'ath') {
-        speedMultiplier = 1.2;
-        wobble = 25;
+        speedMultiplier = 0.6; // Was 1.2
+        wobble = 12; // Was 25
     } else if (vizMode === 'extreme_fear' || vizMode === 'extreme_greed') {
-        speedMultiplier = 0.8;
-        wobble = 20;
+        speedMultiplier = 0.4; // Was 0.8
+        wobble = 10; // Was 20
     } else if (vizMode === 'calm') {
-        speedMultiplier = 0.2;
-        wobble = 10;
+        speedMultiplier = 0.1; // Was 0.2
+        wobble = 5; // Was 10
     }
 
     tunnelSegments.forEach(segment => {
-        segment.z -= 0.04 * speedMultiplier; // Slower base speed
+        segment.z -= 0.02 * speedMultiplier; // Half the base speed (was 0.04)
         if (segment.z < 0) segment.z = 1;
 
         const scale = 1 - segment.z;
@@ -984,7 +1060,7 @@ function drawTunnel() {
         ctx.lineWidth = 2 + scale * 2;
         ctx.stroke();
 
-        segment.rotation += 0.01 * speedMultiplier; // Slower rotation
+        segment.rotation += 0.005 * speedMultiplier; // Half the rotation speed (was 0.01)
     });
 }
 
@@ -993,8 +1069,8 @@ function drawParticles() {
     const centerY = canvas.height / 2;
 
     particles.forEach(particle => {
-        particle.angle += particle.angularSpeed * 0.005; // Slower
-        particle.z += particle.speed * 0.005; // Slower
+        particle.angle += particle.angularSpeed * 0.0025; // Half speed (was 0.005)
+        particle.z += particle.speed * 0.0025; // Half speed (was 0.005)
         if (particle.z > 1) particle.z = 0;
 
         const scale = 1 - particle.z;

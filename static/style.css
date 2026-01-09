@@ -510,6 +510,44 @@ section h2 {
     opacity: 1;
 }
 
+/* Breaking News Section */
+.breaking-news {
+    position: fixed;
+    bottom: 50px;
+    left: 0;
+    width: 100%;
+    background: var(--hot-red);
+    color: var(--white);
+    padding: 12px 20px;
+    z-index: 45;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 -2px 10px rgba(255, 0, 64, 0.5);
+}
+
+.breaking-news-label {
+    font-weight: 800;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.breaking-news-text {
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* News Ticker */
 .news-ticker {
     position: fixed;
@@ -526,7 +564,7 @@ section h2 {
 .news-ticker-content {
     display: inline-block;
     white-space: nowrap;
-    animation: tickerScroll 60s linear infinite;
+    animation: tickerScroll 80s linear infinite;
 }
 
 @keyframes tickerScroll {
@@ -735,6 +773,147 @@ body.light-mode .weather-display {
 
 body.light-mode #psychedelicCanvas {
     border-color: #ff00ff;
+}
+
+/* Additional light mode improvements for better readability */
+body.light-mode .room-code-display {
+    background: #e0e2e5;
+    color: #1a1f35;
+    border-color: #1a1f35;
+}
+
+body.light-mode .icon-btn {
+    background: #f0f2f5;
+    color: #1a1f35;
+    border: 2px solid #1a1f35;
+}
+
+body.light-mode .icon-btn:hover {
+    background: #e0e2e5;
+}
+
+body.light-mode button {
+    color: #1a1f35;
+}
+
+body.light-mode .primary-btn {
+    background: #0080ff;
+    color: #ffffff;
+}
+
+body.light-mode .secondary-btn {
+    background: #f0f2f5;
+    color: #1a1f35;
+    border: 2px solid #1a1f35;
+}
+
+body.light-mode .coin-price {
+    color: #1a1f35;
+}
+
+body.light-mode .coin-change.positive {
+    color: #006600;
+}
+
+body.light-mode .coin-change.negative {
+    color: #cc0000;
+}
+
+body.light-mode .odds-card {
+    background: #f0f2f5;
+    border: 2px solid #b026ff;
+}
+
+body.light-mode .odds-card h4 {
+    color: #1a1f35 !important;
+}
+
+body.light-mode .odds-value {
+    color: #0080ff;
+}
+
+body.light-mode .loading {
+    color: #0080ff;
+}
+
+body.light-mode .weather-temp {
+    color: #0080ff;
+}
+
+body.light-mode .weather-location {
+    color: #1a1f35;
+}
+
+body.light-mode .weather-condition {
+    color: #1a1f35;
+}
+
+body.light-mode .weather-extra {
+    color: #1a1f35;
+}
+
+body.light-mode .news-ticker {
+    background: #ffffff;
+    border-top-color: #1a1f35;
+}
+
+body.light-mode .news-item {
+    color: #1a1f35;
+}
+
+body.light-mode .news-item:hover {
+    color: #0080ff;
+}
+
+body.light-mode .user-count {
+    color: #1a1f35;
+}
+
+body.light-mode .modal-subtitle {
+    color: #1a1f35;
+}
+
+body.light-mode .viz-overlay {
+    color: #1a1f35;
+}
+
+body.light-mode .coin-chip {
+    background: #b026ff;
+    color: #ffffff;
+}
+
+body.light-mode .coin-result-item {
+    background: #f0f2f5;
+    border: 1px solid #1a1f35;
+}
+
+body.light-mode .coin-result-item:hover {
+    background: #e0e2e5;
+}
+
+body.light-mode ::-webkit-scrollbar-track {
+    background: #f0f2f5;
+}
+
+body.light-mode ::-webkit-scrollbar-thumb {
+    background: #b026ff;
+}
+
+body.light-mode ::-webkit-scrollbar-thumb:hover {
+    background: #ff00ff;
+}
+
+body.light-mode .breaking-news {
+    background: #cc0000;
+    color: #ffffff;
+}
+
+body.light-mode .breaking-news-label {
+    color: #ffffff;
+}
+
+body.light-mode .breaking-news-text {
+    color: #ffffff;
 }
 
 /* New Coin Selection Styles */
