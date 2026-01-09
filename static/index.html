@@ -22,17 +22,18 @@
     <div id="roomModal" class="modal">
         <div class="modal-content">
             <h2>🥔 PotatoBugCrypto</h2>
-            <p class="modal-subtitle">Enter a room to start tracking</p>
+            <p class="modal-subtitle">Enter a room to chat with a bug and track crypto</p>
 
             <div class="room-options">
                 <button id="randomRoomBtn" class="primary-btn">Generate Random Room</button>
                 <div class="divider">or</div>
-                <input type="text" id="customRoomInput" placeholder="Enter room code" maxlength="20">
-                <button id="customRoomBtn" class="secondary-btn">Join Custom Room</button>
-            </div>
 
-            <div class="username-section">
-                <input type="text" id="usernameInput" placeholder="Your username" maxlength="20">
+                <div class="username-section">
+                    <input type="text" id="usernameInput" placeholder="Your username" maxlength="20">
+                </div>
+
+                <input type="text" id="customRoomInput" placeholder="Enter custom room code" maxlength="20">
+                <button id="customRoomBtn" class="secondary-btn">Join Custom Room</button>
             </div>
         </div>
     </div>
@@ -53,17 +54,25 @@
 
         <!-- Coins Section -->
         <section class="coins-section">
-            <h2>Coins</h2>
-            <div class="coin-selector">
-                <label><input type="checkbox" value="bitcoin" checked disabled> Bitcoin (BTC)</label>
-                <label><input type="checkbox" value="ethereum"> Ethereum (ETH)</label>
-                <label><input type="checkbox" value="solana"> Solana (SOL)</label>
-                <label><input type="checkbox" value="cardano"> Cardano (ADA)</label>
-                <label><input type="checkbox" value="dogecoin"> Dogecoin (DOGE)</label>
-                <label><input type="checkbox" value="ripple"> Ripple (XRP)</label>
+            <div class="coins-header">
+                <h2>Coins</h2>
+                <button id="addCoinBtn" class="icon-btn">+ Add Coin</button>
             </div>
+            <div id="selectedCoinsDisplay" class="selected-coins"></div>
             <div id="coinPrices" class="coin-prices"></div>
         </section>
+
+        <!-- Add Coin Modal -->
+        <div id="addCoinModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Add Coin</h2>
+                    <button class="close-btn" id="closeAddCoin">×</button>
+                </div>
+                <input type="text" id="coinSearchInput" placeholder="Search coins..." autocomplete="off">
+                <div id="coinSearchResults" class="coin-search-results"></div>
+            </div>
+        </div>
 
         <!-- Polymarket Section -->
         <section class="polymarket-section">
@@ -72,6 +81,29 @@
                 <p class="loading">Loading odds...</p>
             </div>
         </section>
+
+        <!-- Weather Section -->
+        <section class="weather-section">
+            <div class="weather-header">
+                <h2>Weather</h2>
+                <button id="editWeatherBtn" class="icon-btn" title="Set zip code">📍</button>
+            </div>
+            <div id="weatherDisplay" class="weather-display">
+                <p class="weather-prompt">Enter your zip code to see local weather</p>
+            </div>
+        </section>
+
+        <!-- Weather Zip Code Modal -->
+        <div id="weatherModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Set Your Location</h2>
+                    <button class="close-btn" id="closeWeather">×</button>
+                </div>
+                <input type="text" id="zipCodeInput" placeholder="Enter zip code" maxlength="10">
+                <button id="saveZipBtn" class="primary-btn">Save</button>
+            </div>
+        </div>
 
         <!-- Chat Section -->
         <section class="chat-section">

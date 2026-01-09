@@ -1,5 +1,5 @@
-// PotatoBugCrypto v12 Web - Main JavaScript
-// Contains: Room codes, WebSocket chat, APIs, Psychedelic viz, Fren Bot
+// PotatoBugCrypto v12 Web - Enhanced Edition
+// New: 250+ coins, persistent storage, image triggers, chat quotes, fixed Polymarket
 
 // ==================== CONSTANTS ====================
 
@@ -64,19 +64,20 @@ let ws = null;
 let currentRoom = null;
 let currentUsername = null;
 let selectedCoins = ['bitcoin'];
+let allCoinsList = [];
 let coinData = {};
 let polymarketData = [];
 let fngIndex = null;
 let btcActualAth = 0;
 let newsHeadlines = [];
 
-// Settings
 let quotesEnabled = true;
-let quoteInterval = 3; // minutes
+let quoteInterval = 3;
 let vizQuality = 'auto';
 let newsEnabled = true;
+let userZipCode = null;
+let weatherData = null;
 
-// Visualization
 let canvas, ctx;
 let particles = [];
 let tunnelSegments = [];
@@ -87,40 +88,31 @@ let lightningBolts = [];
 // ==================== ROOM CODE SYSTEM ====================
 
 function generateRoomCode() {
-    // 3 random words + 1 random number (0-9)
     const word1 = WORD_LIST[Math.floor(Math.random() * WORD_LIST.length)];
     const word2 = WORD_LIST[Math.floor(Math.random() * WORD_LIST.length)];
     const word3 = WORD_LIST[Math.floor(Math.random() * WORD_LIST.length)];
     const number = Math.floor(Math.random() * 10);
-
     return `${word1}-${word2}-${word3}-${number}`;
 }
 
 function validateRoomCode(code) {
-    // Allow any alphanumeric code with hyphens, max 20 chars
     return code && code.length > 0 && code.length <= 20;
 }
 
 // ==================== INITIALIZATION ====================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Load settings from localStorage
-    loadSettings();
-
-    // Setup room modal
+    loadPersistedData();
     setupRoomModal();
 
-    // Setup canvas
     canvas = document.getElementById('psychedelicCanvas');
     ctx = canvas.getContext('2d');
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // Setup event listeners
     setupEventListeners();
-
-    // Check for auto-quality detection
     detectVizQuality();
+    fetchAllCoinsList();
 });
 
 function setupRoomModal() {
@@ -142,11 +134,10 @@ function setupRoomModal() {
         if (validateRoomCode(roomCode)) {
             joinRoom(roomCode, username);
         } else {
-            alert('Invalid room code. Please enter a valid code (max 20 characters).');
+            alert('Invalid room code');
         }
     });
 
-    // Allow Enter key
     customInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') customBtn.click();
     });
@@ -166,27 +157,59 @@ function joinRoom(roomCode, username) {
     currentRoom = roomCode;
     currentUsername = username;
 
-    // Hide modal, show app
     document.getElementById('roomModal').style.display = 'none';
     document.getElementById('appContainer').style.display = 'block';
     document.getElementById('roomCodeDisplay').textContent = roomCode;
     document.getElementById('settingsRoomCode').textContent = roomCode;
 
-    // Connect WebSocket
     connectWebSocket();
-
-    // Start fetching data
     fetchAllData();
     startDataUpdates();
-
-    // Start visualization
     initVisualization();
     animate();
+    startChatQuoteRotation();
+    updateSelectedCoinsDisplay();
 
-    // Start quotes
-    if (quotesEnabled) {
-        startQuoteRotation();
+    // Load weather if zip code is saved
+    if (userZipCode) {
+        fetchWeather();
     }
+}
+
+// ==================== PERSISTENT STORAGE ====================
+
+function loadPersistedData() {
+    const saved = localStorage.getItem('pbcSettings');
+    if (saved) {
+        const settings = JSON.parse(saved);
+        quotesEnabled = settings.quotesEnabled ?? true;
+        quoteInterval = settings.quoteInterval ?? 3;
+        vizQuality = settings.vizQuality ?? 'auto';
+        newsEnabled = settings.newsEnabled ?? true;
+        selectedCoins = settings.selectedCoins ?? ['bitcoin'];
+        userZipCode = settings.userZipCode ?? null;
+
+        setTimeout(() => {
+            if (document.getElementById('quotesEnabled')) {
+                document.getElementById('quotesEnabled').checked = quotesEnabled;
+                document.getElementById('quoteInterval').value = quoteInterval;
+                document.getElementById('quoteIntervalValue').textContent = quoteInterval;
+                document.getElementById('vizQuality').value = vizQuality;
+                document.getElementById('newsEnabled').checked = newsEnabled;
+            }
+        }, 100);
+    }
+}
+
+function savePersistedData() {
+    localStorage.setItem('pbcSettings', JSON.stringify({
+        quotesEnabled,
+        quoteInterval,
+        vizQuality,
+        newsEnabled,
+        selectedCoins,
+        userZipCode
+    }));
 }
 
 // ==================== WEBSOCKET CHAT ====================
@@ -199,7 +222,6 @@ function connectWebSocket() {
 
     ws.onopen = () => {
         console.log('WebSocket connected');
-        // Join room
         ws.send(JSON.stringify({
             type: 'join',
             room_code: currentRoom,
@@ -218,7 +240,6 @@ function connectWebSocket() {
 
     ws.onclose = () => {
         console.log('WebSocket disconnected');
-        // Try to reconnect after 5 seconds
         setTimeout(connectWebSocket, 5000);
     };
 }
@@ -250,6 +271,10 @@ function addChatMessage(username, message, isBot = false) {
 
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    if (Math.random() < 0.05) {
+        showRandomImage();
+    }
 }
 
 function addSystemMessage(message) {
@@ -275,6 +300,193 @@ function sendChatMessage() {
     }
 }
 
+// ==================== COIN MANAGEMENT ====================
+
+async function fetchAllCoinsList() {
+    try {
+        const response = await fetch(
+            'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1'
+        );
+        const data = await response.json();
+        allCoinsList = data.map(coin => ({
+            id: coin.id,
+            name: coin.name,
+            symbol: coin.symbol.toUpperCase(),
+            rank: coin.market_cap_rank
+        }));
+        console.log(`Loaded ${allCoinsList.length} coins`);
+    } catch (error) {
+        console.error('Error fetching coin list:', error);
+    }
+}
+
+function showAddCoinModal() {
+    document.getElementById('addCoinModal').style.display = 'flex';
+    document.getElementById('coinSearchInput').focus();
+}
+
+function hideAddCoinModal() {
+    document.getElementById('addCoinModal').style.display = 'none';
+    document.getElementById('coinSearchInput').value = '';
+    document.getElementById('coinSearchResults').innerHTML = '';
+}
+
+function searchCoins(query) {
+    if (!query || query.length < 2) {
+        document.getElementById('coinSearchResults').innerHTML = '';
+        return;
+    }
+
+    const results = allCoinsList.filter(coin =>
+        coin.name.toLowerCase().includes(query.toLowerCase()) ||
+        coin.symbol.toLowerCase().includes(query.toLowerCase())
+    ).slice(0, 20);
+
+    const resultsContainer = document.getElementById('coinSearchResults');
+    resultsContainer.innerHTML = '';
+
+    results.forEach(coin => {
+        const isAdded = selectedCoins.includes(coin.id);
+        const item = document.createElement('div');
+        item.className = `coin-result-item ${isAdded ? 'already-added' : ''}`;
+
+        item.innerHTML = `
+            <div>
+                <div class="coin-result-name">${coin.name}</div>
+                <div class="coin-result-symbol">${coin.symbol}</div>
+            </div>
+            <div class="coin-result-rank">#${coin.rank}</div>
+        `;
+
+        if (!isAdded) {
+            item.onclick = () => addCoin(coin.id, coin.name);
+        }
+
+        resultsContainer.appendChild(item);
+    });
+}
+
+function addCoin(coinId, coinName) {
+    if (!selectedCoins.includes(coinId)) {
+        selectedCoins.push(coinId);
+        updateSelectedCoinsDisplay();
+        fetchCoinPrices();
+        savePersistedData();
+        hideAddCoinModal();
+    }
+}
+
+function removeCoin(coinId) {
+    if (coinId === 'bitcoin') return;
+    selectedCoins = selectedCoins.filter(id => id !== coinId);
+    updateSelectedCoinsDisplay();
+    fetchCoinPrices();
+    savePersistedData();
+}
+
+function updateSelectedCoinsDisplay() {
+    const container = document.getElementById('selectedCoinsDisplay');
+    container.innerHTML = '';
+
+    selectedCoins.forEach(coinId => {
+        const coin = allCoinsList.find(c => c.id === coinId);
+        if (!coin && coinId !== 'bitcoin') return;
+
+        const displayName = coin ? coin.name : 'Bitcoin';
+        const displaySymbol = coin ? coin.symbol : 'BTC';
+
+        const chip = document.createElement('div');
+        chip.className = `coin-chip ${coinId === 'bitcoin' ? 'bitcoin' : ''}`;
+        chip.innerHTML = `
+            ${displayName} (${displaySymbol})
+            <span class="remove-coin" onclick="removeCoin('${coinId}')">×</span>
+        `;
+
+        container.appendChild(chip);
+    });
+}
+
+// ==================== WEATHER ====================
+
+function showWeatherModal() {
+    document.getElementById('weatherModal').style.display = 'flex';
+    if (userZipCode) {
+        document.getElementById('zipCodeInput').value = userZipCode;
+    }
+    document.getElementById('zipCodeInput').focus();
+}
+
+function hideWeatherModal() {
+    document.getElementById('weatherModal').style.display = 'none';
+}
+
+function saveZipCode() {
+    const zip = document.getElementById('zipCodeInput').value.trim();
+    if (zip) {
+        userZipCode = zip;
+        savePersistedData();
+        fetchWeather();
+        hideWeatherModal();
+    }
+}
+
+async function fetchWeather() {
+    if (!userZipCode) return;
+
+    try {
+        // Using OpenWeatherMap free API (requires API key, but we'll use wttr.in as free alternative)
+        // wttr.in is a free weather service that doesn't require API key
+        const response = await fetch(`https://wttr.in/${userZipCode}?format=j1`);
+        const data = await response.json();
+
+        weatherData = {
+            location: data.nearest_area[0].areaName[0].value,
+            temp: data.current_condition[0].temp_F,
+            condition: data.current_condition[0].weatherDesc[0].value,
+            humidity: data.current_condition[0].humidity,
+            windSpeed: data.current_condition[0].windspeedMiles,
+            feelsLike: data.current_condition[0].FeelsLikeF
+        };
+
+        updateWeatherDisplay();
+    } catch (error) {
+        console.error('Error fetching weather:', error);
+        document.getElementById('weatherDisplay').innerHTML = '<p class="weather-prompt">Unable to fetch weather. Check zip code.</p>';
+    }
+}
+
+function updateWeatherDisplay() {
+    if (!weatherData) return;
+
+    const container = document.getElementById('weatherDisplay');
+
+    // Get weather emoji based on condition
+    let weatherEmoji = '☀️';
+    const condition = weatherData.condition.toLowerCase();
+    if (condition.includes('cloud')) weatherEmoji = '☁️';
+    else if (condition.includes('rain')) weatherEmoji = '🌧️';
+    else if (condition.includes('snow')) weatherEmoji = '❄️';
+    else if (condition.includes('storm') || condition.includes('thunder')) weatherEmoji = '⛈️';
+    else if (condition.includes('fog') || condition.includes('mist')) weatherEmoji = '🌫️';
+    else if (condition.includes('clear') || condition.includes('sunny')) weatherEmoji = '☀️';
+
+    container.innerHTML = `
+        <div class="weather-info">
+            <div class="weather-icon">${weatherEmoji}</div>
+            <div class="weather-details">
+                <div class="weather-location">${weatherData.location}</div>
+                <div class="weather-temp">${weatherData.temp}°F</div>
+                <div class="weather-condition">${weatherData.condition}</div>
+                <div class="weather-extra">
+                    <span>Feels like ${weatherData.feelsLike}°F</span>
+                    <span>💧 ${weatherData.humidity}%</span>
+                    <span>💨 ${weatherData.windSpeed} mph</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 // ==================== API FETCHING ====================
 
 async function fetchAllData() {
@@ -291,7 +503,7 @@ async function fetchCoinPrices() {
     try {
         const coinIds = selectedCoins.join(',');
         const response = await fetch(
-            `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${coinIds}&order=market_cap_desc`
+            `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${coinIds}`
         );
         const data = await response.json();
 
@@ -308,22 +520,21 @@ async function fetchCoinPrices() {
 
 async function fetchPolymarketOdds() {
     try {
-        // Polymarket public API - get popular crypto markets
-        const response = await fetch('https://gamma-api.polymarket.com/markets?limit=10&active=true');
+        const response = await fetch('https://gamma-api.polymarket.com/markets?limit=100&active=true');
         const data = await response.json();
 
-        // Filter for crypto-related markets
         polymarketData = data.filter(market =>
-            market.question.toLowerCase().includes('bitcoin') ||
-            market.question.toLowerCase().includes('btc') ||
-            market.question.toLowerCase().includes('crypto') ||
-            market.question.toLowerCase().includes('ethereum')
-        ).slice(0, 3); // Top 3
+            (market.question.toLowerCase().includes('bitcoin') ||
+             market.question.toLowerCase().includes('btc') ||
+             market.question.toLowerCase().includes('crypto') ||
+             market.question.toLowerCase().includes('ethereum')) &&
+            market.active !== false
+        ).slice(0, 3);
 
         updatePolymarketDisplay();
     } catch (error) {
-        console.error('Error fetching Polymarket odds:', error);
-        document.getElementById('polymarketOdds').innerHTML = '<p class="loading">Polymarket data unavailable</p>';
+        console.error('Error fetching Polymarket:', error);
+        document.getElementById('polymarketOdds').innerHTML = '<p class="loading">Polymarket temporarily unavailable</p>';
     }
 }
 
@@ -351,11 +562,9 @@ async function fetchNewsHeadlines() {
     if (!newsEnabled) return;
 
     try {
-        // Using CoinDesk RSS feed (public)
         const response = await fetch('https://www.coindesk.com/arc/outboundfeeds/rss/');
         const text = await response.text();
 
-        // Parse RSS (basic)
         const parser = new DOMParser();
         const xml = parser.parseFromString(text, 'text/xml');
         const items = xml.querySelectorAll('item');
@@ -372,21 +581,15 @@ async function fetchNewsHeadlines() {
 }
 
 function startDataUpdates() {
-    // Update coins every 60 seconds
     setInterval(fetchCoinPrices, 60000);
-
-    // Update Polymarket every 5 minutes
     setInterval(fetchPolymarketOdds, 300000);
-
-    // Update F&G every 30 minutes
     setInterval(fetchFearGreedIndex, 1800000);
-
-    // Update ATH every 30 minutes
     setInterval(fetchBitcoinATH, 1800000);
-
-    // Update news every 10 minutes
     if (newsEnabled) {
         setInterval(fetchNewsHeadlines, 600000);
+    }
+    if (userZipCode) {
+        setInterval(fetchWeather, 600000); // Update weather every 10 minutes
     }
 }
 
@@ -406,7 +609,6 @@ function updateCoinDisplay() {
         const card = document.createElement('div');
         card.className = `coin-card ${isPositive ? 'positive' : 'negative'}`;
 
-        // Check for ATH
         let athIndicator = '';
         if (coinId === 'bitcoin' && btcActualAth > 0) {
             if (coin.current_price >= btcActualAth * 0.999) {
@@ -430,7 +632,7 @@ function updatePolymarketDisplay() {
     const container = document.getElementById('polymarketOdds');
 
     if (polymarketData.length === 0) {
-        container.innerHTML = '<p class="loading">No crypto markets found</p>';
+        container.innerHTML = '<p class="loading">Loading crypto markets...</p>';
         return;
     }
 
@@ -440,13 +642,14 @@ function updatePolymarketDisplay() {
         const card = document.createElement('div');
         card.className = 'odds-card';
 
-        // Get the "Yes" outcome price (probability)
-        const yesOutcome = market.outcomes?.find(o => o.name === 'Yes');
-        const probability = yesOutcome ? (yesOutcome.price * 100).toFixed(1) : 'N/A';
+        let probability = 'N/A';
+        if (market.outcomePrices && market.outcomePrices.length > 0) {
+            probability = (parseFloat(market.outcomePrices[0]) * 100).toFixed(1) + '%';
+        }
 
         card.innerHTML = `
             <h4>${market.question}</h4>
-            <div class="odds-value">${probability}%</div>
+            <div class="odds-value">${probability}</div>
         `;
 
         container.appendChild(card);
@@ -472,7 +675,7 @@ function updateNewsTicker() {
     ticker.appendChild(content);
 }
 
-// ==================== MARKET CONDITIONS & FREN BOT ====================
+// ==================== MARKET CONDITIONS ====================
 
 function checkMarketConditions() {
     const btc = coinData['bitcoin'];
@@ -481,7 +684,6 @@ function checkMarketConditions() {
     const change = btc.price_change_percentage_24h || 0;
     const price = btc.current_price;
 
-    // Update viz mode
     if (fngIndex !== null && fngIndex <= 10) {
         vizMode = 'extreme_fear';
         showVizOverlay('💀 EXTREME FEAR 💀');
@@ -491,7 +693,7 @@ function checkMarketConditions() {
     } else if (Math.abs(change) >= 15) {
         vizMode = 'singularity';
         showVizOverlay('🌌 SINGULARITY 🌌');
-        sendFrenBotMessage('🌌 SINGULARITY MODE ACTIVATED! Bitcoin moved ' + change.toFixed(1) + '% today!');
+        sendFrenBotMessage('🌌 SINGULARITY MODE! Bitcoin moved ' + change.toFixed(1) + '% today!');
     } else if (change >= 10) {
         vizMode = 'pump';
         showVizOverlay('🚀 TO THE MOON 🚀');
@@ -530,32 +732,76 @@ function sendFrenBotMessage(message) {
     }
 }
 
-// ==================== QUOTE ROTATION ====================
+// ==================== QUOTES IN CHAT ====================
 
-function startQuoteRotation() {
-    showRandomQuote();
-    setInterval(showRandomQuote, quoteInterval * 60 * 1000);
+function startChatQuoteRotation() {
+    setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+            ws.send(JSON.stringify({
+                type: 'fren_bot',
+                message: `"${quote}"`
+            }));
+        }
+    }, 60000);
 }
 
-function showRandomQuote() {
-    if (!quotesEnabled) return;
+// ==================== IMAGE TRIGGERS ====================
 
-    const quoteDisplay = document.getElementById('quoteDisplay');
-    const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+function showRandomImage() {
+    const imageNumber = Math.floor(Math.random() * 10) + 1;
+    const imagePath = `/static/funny-pics/pic${imageNumber}.jpg`;
 
-    quoteDisplay.textContent = `"${quote}"`;
-    quoteDisplay.classList.add('active');
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 2000;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 20px;
+        border-radius: 12px;
+        border: 3px solid ${COLORS.neon_cyan};
+        box-shadow: 0 0 40px ${COLORS.neon_cyan};
+        max-width: 90%;
+        max-height: 90%;
+        cursor: pointer;
+    `;
 
-    // Hide after 10 seconds
+    const img = document.createElement('img');
+    img.src = imagePath;
+    img.style.cssText = `
+        max-width: 100%;
+        max-height: 70vh;
+        border-radius: 8px;
+    `;
+
+    img.onerror = () => {
+        if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+        }
+    };
+
+    overlay.appendChild(img);
+    document.body.appendChild(overlay);
+
+    overlay.onclick = () => {
+        if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+        }
+    };
+
     setTimeout(() => {
-        quoteDisplay.classList.remove('active');
-    }, 10000);
+        if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+        }
+    }, 3000);
 }
 
-// ==================== PSYCHEDELIC VISUALIZATION ====================
+// ==================== VISUALIZATION ====================
 
 function initVisualization() {
-    // Create particles
     const particleCount = vizQuality === 'low' ? 100 : (vizQuality === 'high' ? 300 : 200);
 
     for (let i = 0; i < particleCount; i++) {
@@ -571,7 +817,6 @@ function initVisualization() {
         });
     }
 
-    // Create tunnel segments
     for (let i = 0; i < 60; i++) {
         tunnelSegments.push({
             z: i * 0.05,
@@ -587,8 +832,6 @@ function resizeCanvas() {
 
 function detectVizQuality() {
     if (vizQuality !== 'auto') return;
-
-    // Simple device detection
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     vizQuality = isMobile ? 'medium' : 'high';
 }
@@ -596,20 +839,13 @@ function detectVizQuality() {
 function animate() {
     requestAnimationFrame(animate);
 
-    // Clear canvas
     ctx.fillStyle = COLORS.bg_dark;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw tunnel
     drawTunnel();
-
-    // Draw particles
     drawParticles();
-
-    // Draw Bitcoin symbol
     drawBitcoinSymbol();
 
-    // Draw lightning (rare)
     if (Math.random() < 0.05 && (vizMode === 'extreme_fear' || vizMode === 'extreme_greed' || vizMode === 'singularity')) {
         drawLightning();
     }
@@ -646,7 +882,6 @@ function drawParticles() {
     const centerY = canvas.height / 2;
 
     particles.forEach(particle => {
-        // Update position
         particle.angle += particle.angularSpeed * 0.01;
         particle.z += particle.speed * 0.01;
         if (particle.z > 1) particle.z = 0;
@@ -658,7 +893,6 @@ function drawParticles() {
         const y = centerY + Math.sin(particle.angle) * orbitRadius * scale;
         const size = particle.size * scale;
 
-        // Draw particle
         ctx.beginPath();
         ctx.arc(x, y, size, 0, Math.PI * 2);
         ctx.fillStyle = getDynamicColor(particle.hue + particle.z, vizMode);
@@ -746,19 +980,19 @@ function getDynamicColor(progress, mode) {
     let hue;
 
     if (mode === 'extreme_greed') {
-        hue = (progress + 0.3) % 1.0; // Green/yellow
+        hue = (progress + 0.3) % 1.0;
     } else if (mode === 'extreme_fear') {
-        hue = 0.0; // Red
+        hue = 0.0;
     } else if (mode === 'singularity') {
-        hue = (progress * 3) % 1.0; // Rapid cycle
+        hue = (progress * 3) % 1.0;
     } else if (mode === 'pump') {
-        hue = 0.33; // Green
+        hue = 0.33;
     } else if (mode === 'dump') {
-        hue = 0.0; // Red
+        hue = 0.0;
     } else if (mode === 'ath') {
-        hue = 0.14; // Gold
+        hue = 0.14;
     } else {
-        hue = progress; // Rainbow
+        hue = progress;
     }
 
     return `hsl(${hue * 360}, 100%, 50%)`;
@@ -767,32 +1001,23 @@ function getDynamicColor(progress, mode) {
 // ==================== EVENT LISTENERS ====================
 
 function setupEventListeners() {
-    // Chat
     document.getElementById('sendBtn').addEventListener('click', sendChatMessage);
     document.getElementById('chatInput').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendChatMessage();
     });
 
-    // Coin selection
-    document.querySelectorAll('.coin-selector input[type="checkbox"]').forEach(checkbox => {
-        checkbox.addEventListener('change', (e) => {
-            if (e.target.checked && !selectedCoins.includes(e.target.value)) {
-                selectedCoins.push(e.target.value);
-            } else {
-                selectedCoins = selectedCoins.filter(c => c !== e.target.value);
-            }
-            fetchCoinPrices();
-        });
+    document.getElementById('addCoinBtn').addEventListener('click', showAddCoinModal);
+    document.getElementById('closeAddCoin').addEventListener('click', hideAddCoinModal);
+    document.getElementById('coinSearchInput').addEventListener('input', (e) => {
+        searchCoins(e.target.value);
     });
 
-    // Theme toggle
     document.getElementById('themeToggle').addEventListener('click', () => {
         document.body.classList.toggle('light-mode');
         const btn = document.getElementById('themeToggle');
         btn.textContent = document.body.classList.contains('light-mode') ? '🌙' : '☀️';
     });
 
-    // Settings modal
     document.getElementById('settingsBtn').addEventListener('click', () => {
         document.getElementById('settingsModal').style.display = 'flex';
     });
@@ -801,29 +1026,27 @@ function setupEventListeners() {
         document.getElementById('settingsModal').style.display = 'none';
     });
 
-    // Settings controls
     document.getElementById('quotesEnabled').addEventListener('change', (e) => {
         quotesEnabled = e.target.checked;
-        saveSettings();
+        savePersistedData();
     });
 
     document.getElementById('quoteInterval').addEventListener('input', (e) => {
         quoteInterval = parseInt(e.target.value);
         document.getElementById('quoteIntervalValue').textContent = quoteInterval;
-        saveSettings();
+        savePersistedData();
     });
 
     document.getElementById('vizQuality').addEventListener('change', (e) => {
         vizQuality = e.target.value;
-        saveSettings();
-        // Reinit particles
+        savePersistedData();
         particles = [];
         initVisualization();
     });
 
     document.getElementById('newsEnabled').addEventListener('change', (e) => {
         newsEnabled = e.target.checked;
-        saveSettings();
+        savePersistedData();
         if (newsEnabled) {
             fetchNewsHeadlines();
         } else {
@@ -837,44 +1060,22 @@ function setupEventListeners() {
     });
 
     document.getElementById('leaveRoom').addEventListener('click', () => {
-        if (confirm('Leave this room? You will need to rejoin with the room code.')) {
+        if (confirm('Leave this room?')) {
             location.reload();
         }
     });
 
-    // Fullscreen viz
     document.getElementById('fullscreenVizBtn').addEventListener('click', () => {
         canvas.requestFullscreen();
     });
+
+    // Weather
+    document.getElementById('editWeatherBtn').addEventListener('click', showWeatherModal);
+    document.getElementById('closeWeather').addEventListener('click', hideWeatherModal);
+    document.getElementById('saveZipBtn').addEventListener('click', saveZipCode);
+    document.getElementById('zipCodeInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') saveZipCode();
+    });
 }
 
-// ==================== SETTINGS PERSISTENCE ====================
-
-function saveSettings() {
-    localStorage.setItem('pbcSettings', JSON.stringify({
-        quotesEnabled,
-        quoteInterval,
-        vizQuality,
-        newsEnabled
-    }));
-}
-
-function loadSettings() {
-    const saved = localStorage.getItem('pbcSettings');
-    if (saved) {
-        const settings = JSON.parse(saved);
-        quotesEnabled = settings.quotesEnabled ?? true;
-        quoteInterval = settings.quoteInterval ?? 3;
-        vizQuality = settings.vizQuality ?? 'auto';
-        newsEnabled = settings.newsEnabled ?? true;
-
-        // Update UI
-        if (document.getElementById('quotesEnabled')) {
-            document.getElementById('quotesEnabled').checked = quotesEnabled;
-            document.getElementById('quoteInterval').value = quoteInterval;
-            document.getElementById('quoteIntervalValue').textContent = quoteInterval;
-            document.getElementById('vizQuality').value = vizQuality;
-            document.getElementById('newsEnabled').checked = newsEnabled;
-        }
-    }
-}
+window.removeCoin = removeCoin;
