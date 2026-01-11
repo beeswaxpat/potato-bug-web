@@ -490,10 +490,19 @@ section h2 {
     margin-bottom: 10px;
 }
 
-/* Desktop - Bigger chat */
+/* Desktop - Bigger chat and more content */
 @media (min-width: 769px) {
     .chat-messages {
-        height: 500px;
+        height: 600px; /* Bigger chat for desktop */
+    }
+
+    .news-headlines-list {
+        max-height: 600px; /* Show more headlines on desktop */
+    }
+
+    .coins-section {
+        max-width: 1200px; /* Wider on desktop */
+        margin: 0 auto;
     }
 }
 

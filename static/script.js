@@ -112,6 +112,7 @@ let coinData = {};
 let polymarketData = [];
 let fngIndex = null;
 let btcActualAth = 0;
+let btc52WeekLow = 0;
 let newsHeadlines = [];
 let lastBtcChange = 0;
 
@@ -149,6 +150,11 @@ let athCelebrationTriggered = false;
 let athCelebrationActive = false;
 let athGoldenParticles = [];
 let athCelebrationStartTime = 0;
+
+// 52-week low warning state
+let weekLowWarningTriggered = false;
+let weekLowWarningActive = false;
+let weekLowWarningStartTime = 0;
 
 // ==================== ROOM CODE SYSTEM ====================
 
@@ -237,7 +243,6 @@ function joinRoom(roomCode, username) {
     startDataUpdates();
     initVisualization();
     animate();
-    startChatQuoteRotation();
     updateSelectedCoinsDisplay();
     initFireworksCanvas();
 
@@ -292,33 +297,52 @@ function savePersistedData() {
 // ==================== WEBSOCKET CHAT ====================
 
 function connectWebSocket() {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    try {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
 
-    ws = new WebSocket(wsUrl);
+        ws = new WebSocket(wsUrl);
 
-    ws.onopen = () => {
-        console.log('WebSocket connected');
-        ws.send(JSON.stringify({
-            type: 'join',
-            room_code: currentRoom,
-            username: currentUsername
-        }));
-    };
+        ws.onopen = () => {
+            console.log('WebSocket connected');
+            try {
+                ws.send(JSON.stringify({
+                    type: 'join',
+                    room_code: currentRoom,
+                    username: currentUsername
+                }));
+            } catch (error) {
+                console.error('Error sending join message:', error);
+            }
+        };
 
-    ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        handleWebSocketMessage(data);
-    };
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            } catch (error) {
+                console.error('Error handling WebSocket message:', error);
+            }
+        };
 
-    ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-    };
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
 
-    ws.onclose = () => {
-        console.log('WebSocket disconnected');
+        ws.onclose = () => {
+            console.log('WebSocket disconnected');
+            setTimeout(() => {
+                try {
+                    connectWebSocket();
+                } catch (error) {
+                    console.error('Error reconnecting WebSocket:', error);
+                }
+            }, 5000);
+        };
+    } catch (error) {
+        console.error('Error creating WebSocket:', error);
         setTimeout(connectWebSocket, 5000);
-    };
+    }
 }
 
 function handleWebSocketMessage(data) {
@@ -723,8 +747,20 @@ async function fetchBitcoinATH() {
         const response = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin');
         const data = await response.json();
         btcActualAth = data.market_data.ath.usd;
+        btc52WeekLow = data.market_data.low_24h.usd; // Get current low, will use historical later
+
+        // Try to get 52-week low from price history
+        const historyResponse = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=365');
+        const historyData = await historyResponse.json();
+
+        if (historyData.prices) {
+            // Find minimum price in last 365 days
+            const prices = historyData.prices.map(p => p[1]);
+            btc52WeekLow = Math.min(...prices);
+            console.log('52-week low:', btc52WeekLow);
+        }
     } catch (error) {
-        console.error('Error fetching Bitcoin ATH:', error);
+        console.error('Error fetching Bitcoin ATH/52W Low:', error);
     }
 }
 
@@ -1082,24 +1118,18 @@ function checkMarketConditions() {
     const price = btc.current_price;
     lastBtcChange = change;
 
-    if (fngIndex !== null && fngIndex <= 10) {
-        vizMode = 'extreme_fear';
-        showVizOverlay('💀 EXTREME FEAR 💀');
-    } else if (fngIndex !== null && fngIndex >= 90) {
-        vizMode = 'extreme_greed';
-        showVizOverlay('🤑 EXTREME GREED 🤑');
-    } else if (Math.abs(change) >= 15) {
-        vizMode = 'singularity';
-        showVizOverlay('🌌 SINGULARITY 🌌');
-        sendFrenBotMessage('🌌 SINGULARITY MODE! Bitcoin moved ' + change.toFixed(1) + '% today!');
-    } else if (change >= 10) {
-        vizMode = 'pump';
-        showVizOverlay('🚀 TO THE MOON 🚀');
-        sendFrenBotMessage('🚀 Bitcoin is pumping! Up ' + change.toFixed(1) + '% today!');
-    } else if (change <= -10) {
-        vizMode = 'dump';
-        showVizOverlay('📉 DUMP MODE 📉');
-        sendFrenBotMessage('📉 Capitulation trade opportunity? Bitcoin down ' + Math.abs(change).toFixed(1) + '% today.');
+    // Check for 52-week low first (highest priority warning)
+    if (btc52WeekLow > 0 && price <= btc52WeekLow * 1.001) {
+        vizMode = '52w_low';
+        showVizOverlay('⚠️ 52 WEEK LOW ⚠️');
+
+        // Trigger 52-week low warning (only once per session)
+        if (!weekLowWarningTriggered) {
+            trigger52WeekLowWarning(price);
+            weekLowWarningTriggered = true;
+        }
+
+        sendFrenBotMessage('⚠️ BITCOIN AT 52-WEEK LOW! Current: $' + price.toLocaleString());
     } else if (btcActualAth > 0 && price >= btcActualAth * 0.999) {
         vizMode = 'ath';
         showVizOverlay('⚡ ALL TIME HIGH ⚡');
@@ -1111,6 +1141,24 @@ function checkMarketConditions() {
         }
 
         sendFrenBotMessage('⚡ BITCOIN AT ALL-TIME HIGH! Current: $' + price.toLocaleString());
+    } else if (fngIndex !== null && fngIndex <= 10) {
+        vizMode = 'extreme_fear';
+        showVizOverlay('💀 EXTREME FEAR 💀');
+    } else if (fngIndex !== null && fngIndex >= 90) {
+        vizMode = 'extreme_greed';
+        showVizOverlay('🤑 EXTREME GREED 🤑');
+    } else if (Math.abs(change) >= 15) {
+        vizMode = 'singularity';
+        showVizOverlay('🌌 SINGULARITY 🌌');
+        sendFrenBotMessage('🌌 SINGULARITY MODE! Bitcoin moved ' + change.toFixed(1) + '% today!');
+    } else if (change >= 5) { // BTC threshold = 5% (THE KING)
+        vizMode = 'pump';
+        showVizOverlay('🚀 TO THE MOON 🚀');
+        sendFrenBotMessage('🚀 Bitcoin is pumping! Up ' + change.toFixed(1) + '% today!');
+    } else if (change <= -5) { // BTC threshold = 5% (THE KING)
+        vizMode = 'dump';
+        showVizOverlay('📉 DUMP MODE 📉');
+        sendFrenBotMessage('📉 Capitulation trade opportunity? Bitcoin down ' + Math.abs(change).toFixed(1) + '% today.');
     } else if (Math.abs(change) < 2) {
         vizMode = 'calm'; // New mode for stagnant market
         hideVizOverlay();
@@ -1118,6 +1166,22 @@ function checkMarketConditions() {
         vizMode = 'normal';
         hideVizOverlay();
     }
+
+    // Check other coins for 10% threshold
+    selectedCoins.forEach(coinId => {
+        if (coinId === 'bitcoin') return; // Already handled above
+
+        const coin = coinData[coinId];
+        if (!coin) return;
+
+        const coinChange = coin.price_change_percentage_24h || 0;
+
+        if (coinChange >= 10) {
+            sendFrenBotMessage(`🚀 ${coin.name} pumping! Up ${coinChange.toFixed(1)}% today!`);
+        } else if (coinChange <= -10) {
+            sendFrenBotMessage(`📉 ${coin.name} dumping! Down ${Math.abs(coinChange).toFixed(1)}% today.`);
+        }
+    });
 }
 
 function showVizOverlay(text) {
@@ -1140,31 +1204,9 @@ function sendFrenBotMessage(message) {
     }
 }
 
-// ==================== QUOTES IN CHAT ====================
-
-function startChatQuoteRotation() {
-    // Send quote immediately to confirm it works
-    setTimeout(() => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            const quote = QUOTES[0]; // Send first quote
-            ws.send(JSON.stringify({
-                type: 'fren_bot',
-                message: `💬 "${quote}"`
-            }));
-        }
-    }, 5000); // Wait 5 seconds for connection
-
-    // Then every quoteInterval minutes
-    setInterval(() => {
-        if (quotesEnabled && ws && ws.readyState === WebSocket.OPEN) {
-            const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-            ws.send(JSON.stringify({
-                type: 'fren_bot',
-                message: `💬 "${quote}"`
-            }));
-        }
-    }, quoteInterval * 60000); // Convert minutes to milliseconds
-}
+// ==================== QUOTES REMOVED ====================
+// Auto-posting quotes removed - users can manually send quotes via RANDOM button
+// Simple chatroom functionality only
 
 // ==================== IMAGE TRIGGERS ====================
 
@@ -1283,27 +1325,33 @@ function detectVizQuality() {
 function animate() {
     requestAnimationFrame(animate);
 
-    if (!ctx) return;
+    if (!ctx || !canvas) return;
 
-    // Clear completely to prevent stacking
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    try {
+        // Clear completely to prevent stacking
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Dark background
-    ctx.fillStyle = COLORS.bg_dark;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Dark background
+        ctx.fillStyle = COLORS.bg_dark;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    drawTunnel();
-    drawArcLines(); // Arc Raiders signature arcs
-    drawParticles();
-    drawBitcoinSymbol();
-    drawUFO(); // UFO easter egg for fullscreen mode
-    drawATHCelebration(); // Spectacular ATH celebration
+        drawTunnel();
+        drawArcLines(); // Arc Raiders signature arcs
+        drawParticles();
+        drawBitcoinSymbol();
+        drawUFO(); // UFO easter egg for fullscreen mode
+        drawATHCelebration(); // Spectacular ATH celebration
+        draw52WeekLowWarning(); // 52-week low warning
 
-    if (vizMode !== 'calm' && Math.random() < 0.05 && (vizMode === 'extreme_fear' || vizMode === 'extreme_greed' || vizMode === 'singularity')) {
-        drawLightning();
+        if (vizMode !== 'calm' && Math.random() < 0.05 && (vizMode === 'extreme_fear' || vizMode === 'extreme_greed' || vizMode === 'singularity')) {
+            drawLightning();
+        }
+
+        updateLightning();
+    } catch (error) {
+        console.error('Animation error:', error);
+        // Continue animation even if one frame fails
     }
-
-    updateLightning();
 }
 
 function drawTunnel() {
@@ -2122,6 +2170,81 @@ function drawATHCelebration() {
     ctx.fillStyle = gradient;
     ctx.globalAlpha = 0.8 + Math.sin(elapsed * 0.01) * 0.2;
     ctx.fillText(rainbowText, centerX, centerY - 50);
+
+    ctx.restore();
+}
+
+// ==================== 52-WEEK LOW WARNING ====================
+
+function trigger52WeekLowWarning(price) {
+    console.log('⚠️ TRIGGERING 52-WEEK LOW WARNING! Price:', price);
+
+    weekLowWarningActive = true;
+    weekLowWarningStartTime = Date.now();
+
+    // Send warning message
+    sendFrenBotMessage('⚠️⚠️ BITCOIN AT 52-WEEK LOW! ⚠️⚠️ $' + price.toLocaleString());
+
+    // Auto-disable after 10 seconds
+    setTimeout(() => {
+        weekLowWarningActive = false;
+        console.log('52-week low warning ended');
+    }, 10000);
+}
+
+function draw52WeekLowWarning() {
+    if (!weekLowWarningActive) return;
+
+    const elapsed = Date.now() - weekLowWarningStartTime;
+
+    // Flashing red warning background
+    const flashSpeed = 0.01;
+    const flash = Math.sin(elapsed * flashSpeed) > 0 ? 0.15 : 0.05;
+
+    ctx.save();
+    ctx.fillStyle = `rgba(255, 0, 0, ${flash})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    // Warning stripes (diagonal)
+    ctx.save();
+    ctx.globalAlpha = 0.2;
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = 40;
+
+    for (let i = -canvas.height; i < canvas.width + canvas.height; i += 100) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i + canvas.height, canvas.height);
+        ctx.stroke();
+    }
+    ctx.restore();
+
+    // Warning text
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    ctx.save();
+    ctx.font = 'bold 42px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const warningText = '⚠️ 52 WEEK LOW ⚠️';
+    const pulse = 1 + Math.sin(elapsed * 0.008) * 0.25;
+
+    // Flashing glow
+    ctx.shadowBlur = 50 * pulse;
+    ctx.shadowColor = '#ff0000';
+    ctx.fillStyle = '#ff0000';
+    ctx.globalAlpha = 0.8 + Math.sin(elapsed * 0.015) * 0.2;
+    ctx.fillText(warningText, centerX, centerY - 50);
+
+    // Secondary warning
+    ctx.font = 'bold 24px Arial';
+    ctx.fillStyle = '#ffff00';
+    ctx.shadowColor = '#ffff00';
+    ctx.shadowBlur = 30;
+    ctx.fillText('DANGER ZONE', centerX, centerY + 10);
 
     ctx.restore();
 }
