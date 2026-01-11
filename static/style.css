@@ -345,34 +345,65 @@ section h2 {
     color: var(--hot-red);
 }
 
-/* Polymarket Section */
-.polymarket-odds {
+/* News Headlines Section */
+.news-headlines-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
-.odds-card {
+.headline-link {
+    display: block;
+    color: var(--neon-cyan);
+    text-decoration: none;
+    padding: 6px 8px;
     background: var(--bg-dark);
-    padding: 10px;
-    border-radius: 0;
+    border-left: 2px solid var(--neon-cyan);
+    border-top: 1px solid rgba(0, 243, 255, 0.2);
+    border-right: 1px solid rgba(0, 243, 255, 0.2);
+    border-bottom: 1px solid rgba(0, 243, 255, 0.2);
+    font-size: 11px;
+    transition: all 0.2s;
+    line-height: 1.4;
+}
+
+.headline-link:hover {
+    background: rgba(0, 243, 255, 0.1);
+    border-left-width: 3px;
+}
+
+.headline-link:visited {
+    color: var(--neon-purple);
+    border-left-color: var(--neon-purple);
+}
+
+/* X Trending Section */
+.x-trending-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.trending-item {
+    padding: 6px 8px;
+    background: var(--bg-dark);
     border-left: 2px solid var(--hot-pink);
     border-top: 1px solid rgba(255, 0, 128, 0.2);
     border-right: 1px solid rgba(255, 0, 128, 0.2);
     border-bottom: 1px solid rgba(255, 0, 128, 0.2);
+    font-size: 11px;
 }
 
-.odds-card h4 {
+.trending-topic {
     color: var(--electric-yellow);
-    font-size: 12px;
-    margin-bottom: 6px;
     font-weight: 400;
 }
 
-.odds-value {
-    font-size: 16px;
-    font-weight: 400;
-    color: var(--hot-pink);
+.trending-count {
+    color: var(--white);
+    opacity: 0.6;
+    font-size: 10px;
+    margin-left: 6px;
 }
 
 /* Chat Section */
@@ -400,6 +431,13 @@ section h2 {
     border-radius: 0;
     padding: 10px;
     margin-bottom: 10px;
+}
+
+/* Desktop - Bigger chat */
+@media (min-width: 769px) {
+    .chat-messages {
+        height: 500px;
+    }
 }
 
 .chat-message {

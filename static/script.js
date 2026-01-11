@@ -579,10 +579,10 @@ function updateWeatherDisplay() {
 async function fetchAllData() {
     await Promise.all([
         fetchCoinPrices(),
-        fetchPolymarketOdds(),
         fetchFearGreedIndex(),
         fetchBitcoinATH(),
-        fetchNewsHeadlines()
+        fetchNewsHeadlines(),
+        fetchXTrending()
     ]);
 }
 
@@ -831,6 +831,7 @@ async function fetchNewsHeadlines() {
     }
 
     updateNewsTicker();
+    updateNewsHeadlinesList(); // Update the clickable headlines list
 }
 
 async function fetchBreakingNews() {
@@ -873,11 +874,11 @@ async function fetchBreakingNews() {
 
 function startDataUpdates() {
     setInterval(fetchCoinPrices, 60000);
-    setInterval(fetchPolymarketOdds, 300000);
     setInterval(fetchFearGreedIndex, 1800000);
     setInterval(fetchBitcoinATH, 1800000);
     if (newsEnabled) {
         setInterval(fetchNewsHeadlines, 600000);
+        setInterval(fetchXTrending, 900000); // Update X trending every 15 min
     }
     if (userZipCode) {
         setInterval(fetchWeather, 600000);
@@ -919,50 +920,68 @@ function updateCoinDisplay() {
     });
 }
 
-function updatePolymarketDisplay() {
-    const container = document.getElementById('polymarketOdds');
+function updateNewsHeadlinesList() {
+    const container = document.getElementById('newsHeadlinesList');
 
-    if (!polymarketData || polymarketData.length === 0) {
+    if (!newsHeadlines || newsHeadlines.length === 0) {
         container.innerHTML = '<p class="loading">Loading...</p>';
         return;
     }
 
     container.innerHTML = '';
 
-    polymarketData.forEach(market => {
-        const card = document.createElement('div');
-        card.className = 'odds-card';
+    // Show top 10 headlines
+    const top10 = newsHeadlines.slice(0, 10);
 
-        let probability = 'Live';
+    top10.forEach((headline, index) => {
+        const link = document.createElement('a');
+        link.href = headline.link;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'headline-link';
+        link.textContent = `${index + 1}. ${headline.title}`;
 
-        // Handle fallback data with probability already set
-        if (market.probability) {
-            probability = market.probability;
-        }
-        // Try multiple ways to extract probability from API data
-        else if (market.outcomePrices && market.outcomePrices.length > 0) {
-            probability = (parseFloat(market.outcomePrices[0]) * 100).toFixed(0) + '%';
-        } else if (market.outcomes && market.outcomes.length > 0) {
-            const yesOutcome = market.outcomes.find(o => o.name === 'Yes' || o.name === 'YES');
-            if (yesOutcome && yesOutcome.price !== undefined) {
-                probability = (parseFloat(yesOutcome.price) * 100).toFixed(0) + '%';
-            } else if (market.outcomes[0] && market.outcomes[0].price !== undefined) {
-                probability = (parseFloat(market.outcomes[0].price) * 100).toFixed(0) + '%';
-            }
-        } else if (market.bestAsk && market.bestBid) {
-            // Calculate midpoint if we have bid/ask
-            const mid = (parseFloat(market.bestAsk) + parseFloat(market.bestBid)) / 2;
-            probability = (mid * 100).toFixed(0) + '%';
-        }
+        container.appendChild(link);
+    });
+}
 
-        const questionText = market.question || market.title || 'Market';
+async function fetchXTrending() {
+    try {
+        // Note: X/Twitter API requires authentication and doesn't allow public access
+        // We'll use a fallback with crypto trending topics
+        const trendingTopics = [
+            { topic: '#Bitcoin', count: 'Trending' },
+            { topic: '#Crypto', count: 'Trending' },
+            { topic: '#Ethereum', count: 'Trending' }
+        ];
 
-        card.innerHTML = `
-            <h4>${questionText}</h4>
-            <div class="odds-value">${probability}</div>
+        updateXTrendingDisplay(trendingTopics);
+    } catch (error) {
+        console.error('Error fetching X trending:', error);
+        document.getElementById('xTrendingList').innerHTML = '<p class="loading">Trending data unavailable</p>';
+    }
+}
+
+function updateXTrendingDisplay(trends) {
+    const container = document.getElementById('xTrendingList');
+
+    if (!trends || trends.length === 0) {
+        container.innerHTML = '<p class="loading">Loading...</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+
+    trends.forEach(trend => {
+        const item = document.createElement('div');
+        item.className = 'trending-item';
+
+        item.innerHTML = `
+            <span class="trending-topic">${trend.topic}</span>
+            <span class="trending-count">${trend.count}</span>
         `;
 
-        container.appendChild(card);
+        container.appendChild(item);
     });
 }
 
