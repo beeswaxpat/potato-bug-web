@@ -16,7 +16,7 @@ const WORD_LIST = [
     'hash', 'proof', 'gas', 'fee', 'tip', 'nonce', 'merkle', 'tree'
 ];
 
-const USERNAME_WORDS = ['bug', 'potato', 'goop', 'dino'];
+const USERNAME_WORDS = ['bug', 'potato', 'goop', 'dino', 'jan'];
 
 const QUOTES = [
     "I got a lil goop naimeen",
@@ -2433,6 +2433,9 @@ function setupEventListeners() {
     // Share room button
     document.getElementById('shareRoomBtn').addEventListener('click', shareRoom);
 
+    // Header music button (accessible to everyone)
+    document.getElementById('headerMusicBtn').addEventListener('click', toggleMusic);
+
     // Theme toggle
     document.getElementById('themeToggle').addEventListener('click', () => {
         document.body.classList.toggle('light-mode');
@@ -2676,44 +2679,51 @@ function fadeOutArcRaidersIntro() {
     if (!arcIntroCanvas) return;
 
     const fadeInterval = setInterval(() => {
-        arcIntroCtx.clearRect(0, 0, arcIntroCanvas.width, arcIntroCanvas.height);
+        // Smooth fade background instead of hard clear
+        arcIntroCtx.fillStyle = 'rgba(10, 14, 26, 0.08)';
+        arcIntroCtx.fillRect(0, 0, arcIntroCanvas.width, arcIntroCanvas.height);
 
         let anyVisible = false;
 
         arcIntroLines.forEach(line => {
-            line.alpha -= 0.03;
+            line.alpha -= 0.015; // Slower fade for smoother effect
 
             if (line.alpha > 0) {
                 anyVisible = true;
 
-                arcIntroCtx.save();
-                arcIntroCtx.globalAlpha = line.alpha;
-                arcIntroCtx.strokeStyle = line.color;
-                arcIntroCtx.lineWidth = line.thickness;
-                arcIntroCtx.lineCap = 'round';
-                arcIntroCtx.shadowBlur = 20;
-                arcIntroCtx.shadowColor = line.color;
+                // Draw multiple glow layers for smoother fade
+                for (let i = 0; i < 3; i++) {
+                    arcIntroCtx.save();
+                    arcIntroCtx.globalAlpha = line.alpha * (1 - i * 0.3);
+                    arcIntroCtx.strokeStyle = line.color;
+                    arcIntroCtx.lineWidth = line.thickness + (i * 5);
+                    arcIntroCtx.lineCap = 'round';
+                    arcIntroCtx.shadowBlur = line.glowIntensity + (i * 15);
+                    arcIntroCtx.shadowColor = line.color;
 
-                arcIntroCtx.beginPath();
-                arcIntroCtx.moveTo(0, line.startY);
+                    arcIntroCtx.beginPath();
+                    arcIntroCtx.moveTo(0, line.startY);
 
-                const cpX = line.currentLength * 0.5;
-                const cpY = line.startY - line.curve;
-                const endX = line.currentLength;
-                const endY = line.startY;
+                    const cpX = line.currentLength * 0.5;
+                    const cpY = line.startY - line.curve;
+                    const endX = line.currentLength;
+                    const endY = line.startY;
 
-                arcIntroCtx.quadraticCurveTo(cpX, cpY, endX, endY);
-                arcIntroCtx.stroke();
+                    arcIntroCtx.quadraticCurveTo(cpX, cpY, endX, endY);
+                    arcIntroCtx.stroke();
 
-                arcIntroCtx.restore();
+                    arcIntroCtx.restore();
+                }
             }
         });
 
         if (!anyVisible) {
             clearInterval(fadeInterval);
             arcIntroAnimating = false;
+            // Final clear
+            arcIntroCtx.clearRect(0, 0, arcIntroCanvas.width, arcIntroCanvas.height);
         }
-    }, 50);
+    }, 30); // Faster interval for smoother animation
 }
 
 async function fetchBTCChangeForIntro() {
