@@ -156,6 +156,9 @@ let weekLowWarningTriggered = false;
 let weekLowWarningActive = false;
 let weekLowWarningStartTime = 0;
 
+// Screen Wake Lock state
+let wakeLock = null;
+
 // ==================== ROOM CODE SYSTEM ====================
 
 function generateRoomCode() {
@@ -249,6 +252,9 @@ function joinRoom(roomCode, username) {
     if (userZipCode) {
         fetchWeather();
     }
+
+    // Request wake lock to keep screen on
+    requestWakeLock();
 }
 
 // ==================== PERSISTENT STORAGE ====================
@@ -2391,6 +2397,44 @@ function setupEventListeners() {
 }
 
 window.removeCoin = removeCoin;
+
+// ==================== SCREEN WAKE LOCK ====================
+
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            console.log('Screen Wake Lock activated');
+
+            wakeLock.addEventListener('release', () => {
+                console.log('Screen Wake Lock released');
+            });
+        } else {
+            console.log('Screen Wake Lock API not supported');
+        }
+    } catch (err) {
+        console.error('Wake Lock request failed:', err);
+    }
+}
+
+async function releaseWakeLock() {
+    if (wakeLock !== null) {
+        try {
+            await wakeLock.release();
+            wakeLock = null;
+            console.log('Wake Lock manually released');
+        } catch (err) {
+            console.error('Wake Lock release failed:', err);
+        }
+    }
+}
+
+// Re-request wake lock when page becomes visible again
+document.addEventListener('visibilitychange', async () => {
+    if (wakeLock !== null && document.visibilityState === 'visible') {
+        await requestWakeLock();
+    }
+});
 
 // ==================== ARC RAIDERS INTRO ANIMATION ====================
 

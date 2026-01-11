@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Generator</title>
+</head>
+<body style="background: #1a1a1a; color: white; font-family: monospace; padding: 20px;">
+    <h1>🥔 PotatoBug Icon Generator</h1>
+    <p>Right-click each image below and "Save image as..." with the specified filename:</p>
+
+    <div style="margin: 20px 0;">
+        <h3>icon-32.png (32x32) - Favicon</h3>
+        <canvas id="icon32" width="32" height="32" style="border: 2px solid #00ffff; image-rendering: pixelated;"></canvas>
+    </div>
+
+    <div style="margin: 20px 0;">
+        <h3>icon-180.png (180x180) - Apple Touch Icon</h3>
+        <canvas id="icon180" width="180" height="180" style="border: 2px solid #00ffff;"></canvas>
+    </div>
+
+    <div style="margin: 20px 0;">
+        <h3>icon-192.png (192x192) - Android</h3>
+        <canvas id="icon192" width="192" height="192" style="border: 2px solid #00ffff;"></canvas>
+    </div>
+
+    <div style="margin: 20px 0;">
+        <h3>icon-512.png (512x512) - High Res</h3>
+        <canvas id="icon512" width="512" height="512" style="border: 2px solid #00ffff;"></canvas>
+    </div>
+
+    <script>
+        function drawIcon(canvas) {
+            const ctx = canvas.getContext('2d');
+            const size = canvas.width;
+            const scale = size / 512;
+
+            // Background
+            ctx.fillStyle = '#0a0e1a';
+            ctx.fillRect(0, 0, size, size);
+
+            // Outer glow circle
+            ctx.strokeStyle = '#00ffff';
+            ctx.globalAlpha = 0.3;
+            ctx.lineWidth = 8 * scale;
+            ctx.beginPath();
+            ctx.arc(256 * scale, 256 * scale, 200 * scale, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+
+            // Potato body
+            ctx.fillStyle = '#8B7355';
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 4 * scale;
+            ctx.beginPath();
+            ctx.ellipse(256 * scale, 280 * scale, 120 * scale, 140 * scale, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Bug spots
+            ctx.fillStyle = '#1a0a2e';
+            ctx.globalAlpha = 0.6;
+            ctx.beginPath();
+            ctx.ellipse(220 * scale, 250 * scale, 25 * scale, 30 * scale, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(290 * scale, 260 * scale, 20 * scale, 25 * scale, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(256 * scale, 310 * scale, 18 * scale, 22 * scale, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+
+            // Antennae
+            ctx.strokeStyle = '#ff006e';
+            ctx.lineWidth = 6 * scale;
+            ctx.lineCap = 'round';
+
+            ctx.beginPath();
+            ctx.moveTo(200 * scale, 200 * scale);
+            ctx.quadraticCurveTo(180 * scale, 150 * scale, 160 * scale, 120 * scale);
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffff00';
+            ctx.beginPath();
+            ctx.arc(160 * scale, 120 * scale, 8 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#ff006e';
+            ctx.beginPath();
+            ctx.moveTo(312 * scale, 200 * scale);
+            ctx.quadraticCurveTo(332 * scale, 150 * scale, 352 * scale, 120 * scale);
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffff00';
+            ctx.beginPath();
+            ctx.arc(352 * scale, 120 * scale, 8 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes
+            // Left eye
+            ctx.fillStyle = '#00ffff';
+            ctx.beginPath();
+            ctx.arc(230 * scale, 240 * scale, 18 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#0a0e1a';
+            ctx.beginPath();
+            ctx.arc(230 * scale, 240 * scale, 10 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(228 * scale, 238 * scale, 4 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Right eye
+            ctx.fillStyle = '#00ffff';
+            ctx.beginPath();
+            ctx.arc(282 * scale, 240 * scale, 18 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#0a0e1a';
+            ctx.beginPath();
+            ctx.arc(282 * scale, 240 * scale, 10 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(280 * scale, 238 * scale, 4 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Bitcoin symbol
+            ctx.font = `bold ${80 * scale}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.strokeStyle = '#ff006e';
+            ctx.lineWidth = 2 * scale;
+            ctx.strokeText('₿', 256 * scale, 420 * scale);
+            ctx.fillStyle = '#ffd700';
+            ctx.fillText('₿', 256 * scale, 420 * scale);
+
+            // Neon glow rings
+            ctx.strokeStyle = '#ff006e';
+            ctx.globalAlpha = 0.2;
+            ctx.lineWidth = 3 * scale;
+            ctx.beginPath();
+            ctx.arc(256 * scale, 256 * scale, 220 * scale, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#ffff00';
+            ctx.globalAlpha = 0.1;
+            ctx.lineWidth = 2 * scale;
+            ctx.beginPath();
+            ctx.arc(256 * scale, 256 * scale, 240 * scale, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+
+        // Generate all icons
+        drawIcon(document.getElementById('icon32'));
+        drawIcon(document.getElementById('icon180'));
+        drawIcon(document.getElementById('icon192'));
+        drawIcon(document.getElementById('icon512'));
+
+        console.log('Icons generated! Right-click each canvas and save as PNG.');
+    </script>
+</body>
+</html>

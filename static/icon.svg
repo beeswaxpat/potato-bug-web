@@ -1,0 +1,38 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#0a0e1a"/>
+
+  <!-- Outer glow circle -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="#00ffff" stroke-width="8" opacity="0.3"/>
+
+  <!-- Potato body -->
+  <ellipse cx="256" cy="280" rx="120" ry="140" fill="#8B7355" stroke="#00ffff" stroke-width="4"/>
+
+  <!-- Bug spots -->
+  <ellipse cx="220" cy="250" rx="25" ry="30" fill="#1a0a2e" opacity="0.6"/>
+  <ellipse cx="290" cy="260" rx="20" ry="25" fill="#1a0a2e" opacity="0.6"/>
+  <ellipse cx="256" cy="310" rx="18" ry="22" fill="#1a0a2e" opacity="0.6"/>
+
+  <!-- Bug antennae -->
+  <path d="M 200 200 Q 180 150, 160 120" stroke="#ff006e" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <circle cx="160" cy="120" r="8" fill="#ffff00"/>
+
+  <path d="M 312 200 Q 332 150, 352 120" stroke="#ff006e" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <circle cx="352" cy="120" r="8" fill="#ffff00"/>
+
+  <!-- Bug eyes -->
+  <circle cx="230" cy="240" r="18" fill="#00ffff"/>
+  <circle cx="230" cy="240" r="10" fill="#0a0e1a"/>
+  <circle cx="228" cy="238" r="4" fill="#ffffff"/>
+
+  <circle cx="282" cy="240" r="18" fill="#00ffff"/>
+  <circle cx="282" cy="240" r="10" fill="#0a0e1a"/>
+  <circle cx="280" cy="238" r="4" fill="#ffffff"/>
+
+  <!-- Bitcoin symbol -->
+  <text x="256" y="420" font-family="Arial, sans-serif" font-size="80" font-weight="bold" fill="#ffd700" text-anchor="middle" stroke="#ff006e" stroke-width="2">₿</text>
+
+  <!-- Neon glow effect -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="#ff006e" stroke-width="3" opacity="0.2"/>
+  <circle cx="256" cy="256" r="240" fill="none" stroke="#ffff00" stroke-width="2" opacity="0.1"/>
+</svg>
