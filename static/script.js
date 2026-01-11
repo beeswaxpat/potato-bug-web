@@ -164,6 +164,7 @@ function validateRoomCode(code) {
 document.addEventListener('DOMContentLoaded', () => {
     loadPersistedData();
     setupRoomModal();
+    initArcRaidersIntro(); // Start Arc Raiders welcome animation
 
     canvas = document.getElementById('psychedelicCanvas');
     if (canvas) {
@@ -1190,6 +1191,10 @@ function animate() {
 
     if (!ctx) return;
 
+    // Clear completely to prevent stacking
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Dark background
     ctx.fillStyle = COLORS.bg_dark;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -1209,63 +1214,61 @@ function drawTunnel() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
-    // MUCH SLOWER speeds - reduced by 70%
-    let speedMultiplier = 0.05; // Very calm default
-    let rotationSpeed = 0.1; // Slow vortex rotation
+    // SLOW speeds for smooth vortex
+    let speedMultiplier = 0.03;
+    let rotationSpeed = 0.08;
 
     if (vizMode === 'singularity') {
-        speedMultiplier = 0.25;
-        rotationSpeed = 0.4;
-    } else if (vizMode === 'pump' || vizMode === 'ath') {
-        speedMultiplier = 0.12;
-        rotationSpeed = 0.2;
-    } else if (vizMode === 'dump') {
         speedMultiplier = 0.15;
-        rotationSpeed = -0.2; // Counter-clockwise for dumps
-    } else if (vizMode === 'extreme_fear' || vizMode === 'extreme_greed') {
-        speedMultiplier = 0.1;
+        rotationSpeed = 0.3;
+    } else if (vizMode === 'pump' || vizMode === 'ath') {
+        speedMultiplier = 0.08;
         rotationSpeed = 0.15;
-    } else if (vizMode === 'calm') {
-        speedMultiplier = 0.03;
-        rotationSpeed = 0.08;
+    } else if (vizMode === 'dump') {
+        speedMultiplier = 0.1;
+        rotationSpeed = -0.15;
+    } else if (vizMode === 'extreme_fear' || vizMode === 'extreme_greed') {
+        speedMultiplier = 0.06;
+        rotationSpeed = 0.12;
     }
 
-    vortexRotation += rotationSpeed * 0.005; // Slower global rotation
+    vortexRotation += rotationSpeed * 0.01;
 
-    tunnelSegments.forEach((segment, index) => {
-        // Move segments toward viewer - much slower
-        segment.z -= 0.005 * speedMultiplier;
-        if (segment.z < 0) {
-            segment.z = 1;
-        }
+    // Draw concentric rotating rings for vortex effect
+    const numRings = 30; // Fewer rings for better performance
 
-        const scale = 1 - segment.z;
+    for (let i = 0; i < numRings; i++) {
+        const depth = i / numRings; // 0 to 1
+        const scale = 1 - depth * 0.7; // Shrink as they go deeper
 
-        // Vortex twist - reduced rotations
-        const twist = vortexRotation + segment.z * Math.PI * 2; // 2 rotations instead of 4
-        const radiusScale = 0.4 + scale * 0.6; // Less extreme shrinking
-        const baseRadius = 150; // Smaller base radius to keep on screen
-        const radius = baseRadius * radiusScale;
+        // Create spiral/twist effect
+        const twist = vortexRotation + depth * Math.PI * 3;
+        const radius = 120 * scale; // Max radius 120px to stay on screen
+
+        // Get color based on depth and mode
+        const color = getWormholeColor(depth, vizMode, 0);
+        const alpha = 0.15 + (1 - depth) * 0.3; // Fade with distance
 
         ctx.save();
         ctx.translate(centerX, centerY);
         ctx.rotate(twist);
 
-        // Draw rotating circle with gap (vortex drain effect)
-        ctx.beginPath();
-        const gapSize = Math.PI * 0.3; // 30% gap for drain effect
-        ctx.arc(0, 0, radius, gapSize, Math.PI * 2 - gapSize);
+        // Draw spiral ring segments (not full circles)
+        const segments = 8;
+        for (let j = 0; j < segments; j++) {
+            const angleStart = (j / segments) * Math.PI * 2;
+            const angleEnd = angleStart + Math.PI / (segments * 0.8);
 
-        const color = getWormholeColor(segment.z, vizMode, 0);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1 + scale * 2; // Thinner lines for performance
-        ctx.globalAlpha = 0.3 + scale * 0.5; // Slightly more transparent
-        ctx.shadowBlur = 5 + scale * 10; // Less blur for performance
-        ctx.shadowColor = color;
-        ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, angleStart, angleEnd);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2 + (1 - depth) * 3;
+            ctx.globalAlpha = alpha;
+            ctx.stroke();
+        }
 
         ctx.restore();
-    });
+    }
 
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
@@ -1786,3 +1789,142 @@ function setupEventListeners() {
 }
 
 window.removeCoin = removeCoin;
+
+// ==================== ARC RAIDERS INTRO ANIMATION ====================
+
+let arcIntroCanvas, arcIntroCtx;
+let arcIntroLines = [];
+let arcIntroAnimating = false;
+
+function initArcRaidersIntro() {
+    arcIntroCanvas = document.getElementById('arcRaidersCanvas');
+    if (!arcIntroCanvas) return;
+
+    arcIntroCtx = arcIntroCanvas.getContext('2d');
+    arcIntroCanvas.width = window.innerWidth;
+    arcIntroCanvas.height = window.innerHeight;
+
+    // Create Arc Raiders signature arc lines (like the game logo)
+    const colors = [
+        COLORS.neon_cyan,     // Cyan
+        COLORS.electric_yellow, // Yellow
+        COLORS.sunset_orange,  // Orange
+        COLORS.hot_pink,       // Pink/Magenta
+        COLORS.miami_purple    // Purple
+    ];
+
+    // Create curved arc lines from left side (like Arc Raiders logo)
+    for (let i = 0; i < 5; i++) {
+        arcIntroLines.push({
+            color: colors[i],
+            startY: window.innerHeight * 0.2 + (i * window.innerHeight * 0.15),
+            currentLength: 0,
+            maxLength: window.innerWidth * 0.4,
+            speed: 8 + Math.random() * 4,
+            thickness: 20 + i * 5,
+            curve: 50 + i * 30, // Curved effect
+            alpha: 0
+        });
+    }
+
+    arcIntroAnimating = true;
+    animateArcRaidersIntro();
+}
+
+function animateArcRaidersIntro() {
+    if (!arcIntroAnimating || !arcIntroCanvas) return;
+
+    arcIntroCtx.clearRect(0, 0, arcIntroCanvas.width, arcIntroCanvas.height);
+
+    let allComplete = true;
+
+    arcIntroLines.forEach((line, index) => {
+        // Fade in
+        if (line.alpha < 1) {
+            line.alpha += 0.02;
+        }
+
+        // Grow the line
+        if (line.currentLength < line.maxLength) {
+            line.currentLength += line.speed;
+            allComplete = false;
+        }
+
+        // Draw curved arc line
+        arcIntroCtx.save();
+        arcIntroCtx.globalAlpha = line.alpha;
+        arcIntroCtx.strokeStyle = line.color;
+        arcIntroCtx.lineWidth = line.thickness;
+        arcIntroCtx.lineCap = 'round';
+        arcIntroCtx.shadowBlur = 20;
+        arcIntroCtx.shadowColor = line.color;
+
+        // Draw curved path
+        arcIntroCtx.beginPath();
+        arcIntroCtx.moveTo(0, line.startY);
+
+        // Create bezier curve for arc effect
+        const cpX = line.currentLength * 0.5;
+        const cpY = line.startY - line.curve;
+        const endX = line.currentLength;
+        const endY = line.startY;
+
+        arcIntroCtx.quadraticCurveTo(cpX, cpY, endX, endY);
+        arcIntroCtx.stroke();
+
+        arcIntroCtx.restore();
+    });
+
+    if (!allComplete) {
+        requestAnimationFrame(animateArcRaidersIntro);
+    } else {
+        // Fade out after 2 seconds
+        setTimeout(() => {
+            fadeOutArcRaidersIntro();
+        }, 2000);
+    }
+}
+
+function fadeOutArcRaidersIntro() {
+    if (!arcIntroCanvas) return;
+
+    const fadeInterval = setInterval(() => {
+        arcIntroCtx.clearRect(0, 0, arcIntroCanvas.width, arcIntroCanvas.height);
+
+        let anyVisible = false;
+
+        arcIntroLines.forEach(line => {
+            line.alpha -= 0.03;
+
+            if (line.alpha > 0) {
+                anyVisible = true;
+
+                arcIntroCtx.save();
+                arcIntroCtx.globalAlpha = line.alpha;
+                arcIntroCtx.strokeStyle = line.color;
+                arcIntroCtx.lineWidth = line.thickness;
+                arcIntroCtx.lineCap = 'round';
+                arcIntroCtx.shadowBlur = 20;
+                arcIntroCtx.shadowColor = line.color;
+
+                arcIntroCtx.beginPath();
+                arcIntroCtx.moveTo(0, line.startY);
+
+                const cpX = line.currentLength * 0.5;
+                const cpY = line.startY - line.curve;
+                const endX = line.currentLength;
+                const endY = line.startY;
+
+                arcIntroCtx.quadraticCurveTo(cpX, cpY, endX, endY);
+                arcIntroCtx.stroke();
+
+                arcIntroCtx.restore();
+            }
+        });
+
+        if (!anyVisible) {
+            clearInterval(fadeInterval);
+            arcIntroAnimating = false;
+        }
+    }, 50);
+}
