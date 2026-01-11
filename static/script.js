@@ -582,7 +582,8 @@ async function fetchAllData() {
         fetchFearGreedIndex(),
         fetchBitcoinATH(),
         fetchNewsHeadlines(),
-        fetchXTrending()
+        fetchXTrending(),
+        fetchFinancialIndicators()
     ]);
 }
 
@@ -872,10 +873,62 @@ async function fetchBreakingNews() {
     }
 }
 
+async function fetchFinancialIndicators() {
+    try {
+        // Fetch 10Y Treasury Yield from FRED API (St. Louis Fed)
+        // Note: This endpoint may require API key for production
+        // Using a fallback/demo approach
+
+        // For now, we'll use Yahoo Finance or similar APIs
+        // Simplified approach - in production you'd use proper APIs
+
+        const treasury = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/%5ETNX?interval=1d&range=1d')
+            .then(r => r.json())
+            .then(data => {
+                const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+                return price ? `${price.toFixed(2)}%` : '--';
+            })
+            .catch(() => '--');
+
+        const gold = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=1d')
+            .then(r => r.json())
+            .then(data => {
+                const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+                return price ? `$${price.toFixed(2)}` : '--';
+            })
+            .catch(() => '--');
+
+        const silver = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/SI=F?interval=1d&range=1d')
+            .then(r => r.json())
+            .then(data => {
+                const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+                return price ? `$${price.toFixed(2)}` : '--';
+            })
+            .catch(() => '--');
+
+        const oil = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/CL=F?interval=1d&range=1d')
+            .then(r => r.json())
+            .then(data => {
+                const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+                return price ? `$${price.toFixed(2)}` : '--';
+            })
+            .catch(() => '--');
+
+        document.getElementById('treasury10y').textContent = treasury;
+        document.getElementById('goldPrice').textContent = gold;
+        document.getElementById('silverPrice').textContent = silver;
+        document.getElementById('oilPrice').textContent = oil;
+
+    } catch (error) {
+        console.error('Error fetching financial indicators:', error);
+    }
+}
+
 function startDataUpdates() {
     setInterval(fetchCoinPrices, 60000);
     setInterval(fetchFearGreedIndex, 1800000);
     setInterval(fetchBitcoinATH, 1800000);
+    setInterval(fetchFinancialIndicators, 60000); // Every minute when markets open
     if (newsEnabled) {
         setInterval(fetchNewsHeadlines, 600000);
         setInterval(fetchXTrending, 900000); // Update X trending every 15 min
@@ -1823,26 +1876,31 @@ function initArcRaidersIntro() {
     arcIntroCanvas.width = window.innerWidth;
     arcIntroCanvas.height = window.innerHeight;
 
-    // Create Arc Raiders signature arc lines (like the game logo)
+    // Arc Raiders signature colors - matching the game
     const colors = [
-        COLORS.neon_cyan,     // Cyan
-        COLORS.electric_yellow, // Yellow
-        COLORS.sunset_orange,  // Orange
-        COLORS.hot_pink,       // Pink/Magenta
-        COLORS.miami_purple    // Purple
+        '#00ffff',  // Bright cyan
+        '#ffff00',  // Bright yellow
+        '#ff6600',  // Orange
+        '#ff0099',  // Hot pink
+        '#9933ff'   // Purple
     ];
 
-    // Create curved arc lines from left side (like Arc Raiders logo)
-    for (let i = 0; i < 5; i++) {
+    // Create curved arc lines from left side (Arc Raiders logo style)
+    // Make them bigger and more prominent
+    const numLines = 5;
+    const spacing = window.innerHeight / (numLines + 2);
+
+    for (let i = 0; i < numLines; i++) {
         arcIntroLines.push({
             color: colors[i],
-            startY: window.innerHeight * 0.2 + (i * window.innerHeight * 0.15),
+            startY: spacing * (i + 1.5),
             currentLength: 0,
-            maxLength: window.innerWidth * 0.4,
-            speed: 8 + Math.random() * 4,
-            thickness: 20 + i * 5,
-            curve: 50 + i * 30, // Curved effect
-            alpha: 0
+            maxLength: window.innerWidth * 0.45,
+            speed: 12 + Math.random() * 6,
+            thickness: 25 + i * 8, // Thicker lines
+            curve: 60 + i * 40, // More pronounced curve
+            alpha: 0,
+            glowIntensity: 30 + i * 10
         });
     }
 
@@ -1853,14 +1911,16 @@ function initArcRaidersIntro() {
 function animateArcRaidersIntro() {
     if (!arcIntroAnimating || !arcIntroCanvas) return;
 
-    arcIntroCtx.clearRect(0, 0, arcIntroCanvas.width, arcIntroCanvas.height);
+    // Dark background with slight transparency for trail effect
+    arcIntroCtx.fillStyle = 'rgba(10, 14, 26, 0.15)';
+    arcIntroCtx.fillRect(0, 0, arcIntroCanvas.width, arcIntroCanvas.height);
 
     let allComplete = true;
 
     arcIntroLines.forEach((line, index) => {
-        // Fade in
+        // Fade in quickly
         if (line.alpha < 1) {
-            line.alpha += 0.02;
+            line.alpha += 0.03;
         }
 
         // Grow the line
@@ -1869,27 +1929,32 @@ function animateArcRaidersIntro() {
             allComplete = false;
         }
 
-        // Draw curved arc line
+        // Draw curved arc line with intense glow
         arcIntroCtx.save();
         arcIntroCtx.globalAlpha = line.alpha;
-        arcIntroCtx.strokeStyle = line.color;
-        arcIntroCtx.lineWidth = line.thickness;
-        arcIntroCtx.lineCap = 'round';
-        arcIntroCtx.shadowBlur = 20;
-        arcIntroCtx.shadowColor = line.color;
 
-        // Draw curved path
-        arcIntroCtx.beginPath();
-        arcIntroCtx.moveTo(0, line.startY);
+        // Multiple glow layers for Arc Raiders effect
+        for (let i = 0; i < 3; i++) {
+            arcIntroCtx.beginPath();
+            arcIntroCtx.moveTo(0, line.startY);
 
-        // Create bezier curve for arc effect
-        const cpX = line.currentLength * 0.5;
-        const cpY = line.startY - line.curve;
-        const endX = line.currentLength;
-        const endY = line.startY;
+            // Create smooth bezier curve
+            const cpX = line.currentLength * 0.5;
+            const cpY = line.startY - line.curve;
+            const endX = line.currentLength;
+            const endY = line.startY;
 
-        arcIntroCtx.quadraticCurveTo(cpX, cpY, endX, endY);
-        arcIntroCtx.stroke();
+            arcIntroCtx.quadraticCurveTo(cpX, cpY, endX, endY);
+
+            arcIntroCtx.strokeStyle = line.color;
+            arcIntroCtx.lineWidth = line.thickness + (i * 5);
+            arcIntroCtx.lineCap = 'round';
+            arcIntroCtx.shadowBlur = line.glowIntensity + (i * 15);
+            arcIntroCtx.shadowColor = line.color;
+            arcIntroCtx.globalAlpha = line.alpha * (1 - i * 0.3);
+
+            arcIntroCtx.stroke();
+        }
 
         arcIntroCtx.restore();
     });
@@ -1897,7 +1962,7 @@ function animateArcRaidersIntro() {
     if (!allComplete) {
         requestAnimationFrame(animateArcRaidersIntro);
     } else {
-        // Fade out after 2 seconds
+        // Hold for 2 seconds then fade
         setTimeout(() => {
             fadeOutArcRaidersIntro();
         }, 2000);

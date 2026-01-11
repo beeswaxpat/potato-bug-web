@@ -1,9 +1,10 @@
 /* PotatoBugCrypto v12 - Cyberpunk Style */
 
 :root {
-    /* V12 Color Scheme */
+    /* V12 Color Scheme - Cyberpunk Dystopian Arc Raiders */
     --bg-dark: #0a0e1a;
     --bg-medium: #1a1f35;
+    --bg-card: #141824;
     --neon-cyan: #00f3ff;
     --neon-magenta: #ff00ff;
     --neon-purple: #b026ff;
@@ -15,6 +16,7 @@
     --gold: #ffd700;
     --hot-red: #ff0040;
     --white: #ffffff;
+    --grid-glow: rgba(0, 243, 255, 0.08);
 
     /* Light mode colors */
     --light-bg: #f0f2f5;
@@ -31,6 +33,11 @@
 body {
     font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
     background: var(--bg-dark);
+    background-image:
+        linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    background-position: -1px -1px;
     color: var(--white);
     overflow-x: hidden;
     transition: background 0.3s, color 0.3s;
@@ -404,6 +411,56 @@ section h2 {
     opacity: 0.6;
     font-size: 10px;
     margin-left: 6px;
+}
+
+/* Financial Indicators */
+.financial-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+}
+
+.indicator-card {
+    background: var(--bg-card);
+    padding: 10px;
+    border: 1px solid var(--neon-cyan);
+    border-left: 3px solid var(--neon-cyan);
+    position: relative;
+    overflow: hidden;
+}
+
+.indicator-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+    opacity: 0.3;
+}
+
+.indicator-label {
+    font-size: 10px;
+    color: var(--neon-cyan);
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.indicator-value {
+    font-size: 16px;
+    color: var(--white);
+    font-weight: 400;
+}
+
+.indicator-value.positive {
+    color: var(--nuclear-green);
+}
+
+.indicator-value.negative {
+    color: var(--hot-red);
 }
 
 /* Chat Section */
