@@ -1589,30 +1589,128 @@ function getDynamicColor(progress, mode) {
     return getWormholeColor(progress, mode, 0);
 }
 
-// ==================== MUSIC PLAYER ====================
+// ==================== CASSETTE TAPE MUSIC PLAYER ====================
+
+const synthwaveTracks = [
+    { name: 'Neon Nights', url: 'https://cdn.pixabay.com/audio/2024/08/05/audio_ca25bc8e00.mp3' },
+    { name: 'Cyber Dreams', url: 'https://cdn.pixabay.com/audio/2023/10/06/audio_5c63babf76.mp3' },
+    { name: 'Electric Pulse', url: 'https://cdn.pixabay.com/audio/2022/03/22/audio_2348988ac0.mp3' },
+    { name: 'Retro Wave', url: 'https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3' },
+    { name: 'Future Past', url: 'https://ia601500.us.archive.org/23/items/ncs-release-elektronomia-sky-high/Elektronomia%20-%20Sky%20High.mp3' },
+    { name: 'Synthwave City', url: 'https://ia802707.us.archive.org/14/items/ncs-release-approaching-nirvana-sugar-high/Approaching%20Nirvana%20-%20Sugar%20High.mp3' },
+    { name: 'Digital Rain', url: 'https://cdn.pixabay.com/audio/2023/11/29/audio_b43e3aa4ae.mp3' },
+    { name: 'Arc Raiders Mix', url: 'https://cdn.pixabay.com/audio/2024/02/22/audio_20d84c36c8.mp3' }
+];
+
+let currentTrackIndex = 0;
+let isPlaying = false;
 
 function toggleMusic() {
-    const audio = document.getElementById('synthMusic');
-    const btn = document.getElementById('musicBtn');
+    const cassettePlayer = document.getElementById('cassettePlayer');
 
-    if (musicPlaying) {
-        audio.pause();
-        btn.textContent = '🎵 MUSIC';
-        btn.style.opacity = '0.7';
-        musicPlaying = false;
+    if (cassettePlayer.style.display === 'none' || cassettePlayer.style.display === '') {
+        // Show cassette player
+        cassettePlayer.style.display = 'block';
+        loadTrack(currentTrackIndex);
+        addSystemMessage('🎵 Cassette player opened! Hit PLAY ►');
     } else {
-        // Try to play with better error handling
-        audio.play().then(() => {
-            btn.textContent = '⏸️ MUSIC';
-            btn.style.opacity = '1';
-            musicPlaying = true;
-            console.log('Music started playing');
+        // Hide cassette player and stop music
+        cassettePlayer.style.display = 'none';
+        pauseMusic();
+    }
+}
+
+function loadTrack(index) {
+    const audio = document.getElementById('synthMusic');
+    const track = synthwaveTracks[index];
+
+    audio.src = track.url;
+    audio.load();
+    audio.volume = 0.7;
+
+    document.getElementById('cassetteTrackName').textContent = track.name.toUpperCase();
+    document.getElementById('currentTrackNum').textContent = index + 1;
+    document.getElementById('totalTracks').textContent = synthwaveTracks.length;
+
+    console.log('Loaded track:', track.name);
+}
+
+function playMusic() {
+    const audio = document.getElementById('synthMusic');
+    const playBtn = document.getElementById('playBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const leftReel = document.getElementById('leftReel');
+    const rightReel = document.getElementById('rightReel');
+
+    const playPromise = audio.play();
+
+    if (playPromise !== undefined) {
+        playPromise.then(() => {
+            isPlaying = true;
+            playBtn.style.display = 'none';
+            pauseBtn.style.display = 'block';
+
+            // Spin the reels!
+            leftReel.classList.add('spinning');
+            rightReel.classList.add('spinning');
+
+            console.log('🎵 Playing:', synthwaveTracks[currentTrackIndex].name);
         }).catch(err => {
-            console.error('Audio play failed:', err);
-            addSystemMessage('⚠️ Music failed to load. Try clicking again or check browser settings.');
-            btn.style.opacity = '0.7';
+            console.error('Play failed:', err);
+            addSystemMessage('⚠️ Tap PLAY ► again to start music');
         });
     }
+
+    // Auto-play next track when current ends
+    audio.onended = () => {
+        nextTrack();
+    };
+}
+
+function pauseMusic() {
+    const audio = document.getElementById('synthMusic');
+    const playBtn = document.getElementById('playBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const leftReel = document.getElementById('leftReel');
+    const rightReel = document.getElementById('rightReel');
+
+    audio.pause();
+    isPlaying = false;
+    playBtn.style.display = 'block';
+    pauseBtn.style.display = 'none';
+
+    // Stop spinning
+    leftReel.classList.remove('spinning');
+    rightReel.classList.remove('spinning');
+
+    console.log('⏸ Paused');
+}
+
+function prevTrack() {
+    currentTrackIndex--;
+    if (currentTrackIndex < 0) {
+        currentTrackIndex = synthwaveTracks.length - 1;
+    }
+    loadTrack(currentTrackIndex);
+    if (isPlaying) {
+        playMusic();
+    }
+}
+
+function nextTrack() {
+    currentTrackIndex++;
+    if (currentTrackIndex >= synthwaveTracks.length) {
+        currentTrackIndex = 0;
+    }
+    loadTrack(currentTrackIndex);
+    if (isPlaying) {
+        playMusic();
+    }
+}
+
+function closeCassette() {
+    document.getElementById('cassettePlayer').style.display = 'none';
+    pauseMusic();
 }
 
 // ==================== FIREWORKS SYSTEM ====================
@@ -1782,6 +1880,13 @@ function setupEventListeners() {
     document.getElementById('rocketEmojiBtn').addEventListener('click', () => sendEmoji('🚀'));
     document.getElementById('fireworksBtn').addEventListener('click', sendFireworks);
     document.getElementById('musicBtn').addEventListener('click', toggleMusic);
+
+    // Cassette player controls
+    document.getElementById('playBtn')?.addEventListener('click', playMusic);
+    document.getElementById('pauseBtn')?.addEventListener('click', pauseMusic);
+    document.getElementById('prevTrack')?.addEventListener('click', prevTrack);
+    document.getElementById('nextTrack')?.addEventListener('click', nextTrack);
+    document.getElementById('closeCassette')?.addEventListener('click', closeCassette);
 
     // Add coin
     document.getElementById('addCoinBtn').addEventListener('click', showAddCoinModal);

@@ -92,12 +92,51 @@
             </div>
         </section>
 
-        <!-- Hidden audio element for music -->
-        <audio id="synthMusic" loop preload="auto">
-            <!-- Using multiple sources for better compatibility -->
-            <source src="https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3" type="audio/mpeg">
-            <source src="https://cdn.pixabay.com/audio/2022/03/10/audio_4f0ee7db6d.mp3" type="audio/mpeg">
-        </audio>
+        <!-- Cassette Tape Music Player -->
+        <div id="cassettePlayer" class="cassette-player" style="display: none;">
+            <div class="cassette-header">
+                <span class="cassette-title" id="cassetteTrackName">CYBERPUNK MIX</span>
+                <button class="cassette-close" id="closeCassette">×</button>
+            </div>
+
+            <div class="cassette-body">
+                <!-- Tape Reels -->
+                <div class="tape-reels">
+                    <div class="reel left-reel" id="leftReel">
+                        <div class="reel-center"></div>
+                        <div class="reel-spoke"></div>
+                        <div class="reel-spoke"></div>
+                        <div class="reel-spoke"></div>
+                        <div class="reel-spoke"></div>
+                    </div>
+                    <div class="reel right-reel" id="rightReel">
+                        <div class="reel-center"></div>
+                        <div class="reel-spoke"></div>
+                        <div class="reel-spoke"></div>
+                        <div class="reel-spoke"></div>
+                        <div class="reel-spoke"></div>
+                    </div>
+                </div>
+
+                <!-- Track Info -->
+                <div class="track-info">
+                    <div class="track-counter">
+                        <span id="currentTrackNum">1</span> / <span id="totalTracks">8</span>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="cassette-controls">
+                    <button class="control-btn" id="prevTrack" title="Previous">◄</button>
+                    <button class="control-btn play-btn" id="playBtn" title="Play">►</button>
+                    <button class="control-btn" id="pauseBtn" title="Pause" style="display: none;">❚❚</button>
+                    <button class="control-btn" id="nextTrack" title="Next">►</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden audio element -->
+        <audio id="synthMusic" preload="metadata" crossorigin="anonymous"></audio>
 
         <!-- Financial Indicators -->
         <section class="financial-indicators-section">

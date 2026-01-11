@@ -1312,3 +1312,148 @@ body.light-mode .chat-btn:hover {
     background: var(--hot-pink) !important;
     color: var(--bg-dark) !important;
 }
+
+/* Cassette Tape Player */
+.cassette-player {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 280px;
+    background: var(--bg-card);
+    border: 1px solid var(--neon-cyan);
+    z-index: 1000;
+    box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
+}
+
+.cassette-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    background: var(--bg-medium);
+    border-bottom: 1px solid var(--neon-cyan);
+}
+
+.cassette-title {
+    font-size: 11px;
+    color: var(--electric-yellow);
+    letter-spacing: 1px;
+    font-weight: 400;
+}
+
+.cassette-close {
+    background: transparent;
+    border: none;
+    color: var(--hot-red);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.cassette-body {
+    padding: 15px;
+}
+
+.tape-reels {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 15px;
+}
+
+.reel {
+    width: 60px;
+    height: 60px;
+    border: 2px solid var(--neon-cyan);
+    border-radius: 50%;
+    position: relative;
+    background: var(--bg-dark);
+}
+
+.reel-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    background: var(--neon-cyan);
+    border-radius: 50%;
+}
+
+.reel-spoke {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2px;
+    height: 50%;
+    background: var(--neon-cyan);
+    transform-origin: top center;
+}
+
+.reel-spoke:nth-child(2) { transform: translate(-50%, 0) rotate(0deg); }
+.reel-spoke:nth-child(3) { transform: translate(-50%, 0) rotate(90deg); }
+.reel-spoke:nth-child(4) { transform: translate(-50%, 0) rotate(45deg); }
+.reel-spoke:nth-child(5) { transform: translate(-50%, 0) rotate(135deg); }
+
+.reel.spinning {
+    animation: spinReel 2s linear infinite;
+}
+
+@keyframes spinReel {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.track-info {
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.track-counter {
+    font-size: 12px;
+    color: var(--neon-cyan);
+}
+
+.cassette-controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.control-btn {
+    background: transparent;
+    border: 1px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    font-size: 16px;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+}
+
+.control-btn:hover {
+    background: var(--neon-cyan);
+    color: var(--bg-dark);
+}
+
+.control-btn.play-btn {
+    border-color: var(--nuclear-green);
+    color: var(--nuclear-green);
+}
+
+.control-btn.play-btn:hover {
+    background: var(--nuclear-green);
+    color: var(--bg-dark);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .cassette-player {
+        bottom: 60px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+    }
+}
