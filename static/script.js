@@ -136,6 +136,14 @@ let musicPlaying = false;
 let fireworksCanvas, fireworksCtx;
 let fireworksParticles = [];
 
+// UFO easter egg for fullscreen mode
+let isFullscreen = false;
+let ufoX = 0;
+let ufoY = 0;
+let ufoVelX = 2;
+let ufoVelY = 1;
+let ufoVisible = false;
+
 // ==================== ROOM CODE SYSTEM ====================
 
 function generateRoomCode() {
@@ -582,7 +590,6 @@ async function fetchAllData() {
         fetchFearGreedIndex(),
         fetchBitcoinATH(),
         fetchNewsHeadlines(),
-        fetchXTrending(),
         fetchFinancialIndicators()
     ]);
 }
@@ -720,7 +727,7 @@ async function fetchNewsHeadlines() {
 
     let allHeadlines = [];
 
-    // Fetch Fox Business
+    // Fetch Fox Business (2 articles)
     try {
         const response = await fetch('https://moxie.foxbusiness.com/google-publisher/markets.xml');
         const text = await response.text();
@@ -728,16 +735,17 @@ async function fetchNewsHeadlines() {
         const xml = parser.parseFromString(text, 'text/xml');
         const items = xml.querySelectorAll('item');
 
-        const foxHeadlines = Array.from(items).slice(0, 6).map(item => ({
-            title: '📺 FOX BIZ: ' + item.querySelector('title')?.textContent,
-            link: item.querySelector('link')?.textContent
+        const foxHeadlines = Array.from(items).slice(0, 2).map(item => ({
+            title: '📺 FOX: ' + item.querySelector('title')?.textContent,
+            link: item.querySelector('link')?.textContent,
+            pubDate: new Date(item.querySelector('pubDate')?.textContent || Date.now())
         }));
         allHeadlines.push(...foxHeadlines);
     } catch (error) {
         console.error('Error fetching Fox Business news:', error);
     }
 
-    // Fetch CNBC
+    // Fetch CNBC (2 articles)
     try {
         const response = await fetch('https://www.cnbc.com/id/100003114/device/rss/rss.html');
         const text = await response.text();
@@ -745,16 +753,17 @@ async function fetchNewsHeadlines() {
         const xml = parser.parseFromString(text, 'text/xml');
         const items = xml.querySelectorAll('item');
 
-        const cnbcHeadlines = Array.from(items).slice(0, 6).map(item => ({
+        const cnbcHeadlines = Array.from(items).slice(0, 2).map(item => ({
             title: '📊 CNBC: ' + item.querySelector('title')?.textContent,
-            link: item.querySelector('link')?.textContent
+            link: item.querySelector('link')?.textContent,
+            pubDate: new Date(item.querySelector('pubDate')?.textContent || Date.now())
         }));
         allHeadlines.push(...cnbcHeadlines);
     } catch (error) {
         console.error('Error fetching CNBC news:', error);
     }
 
-    // Fetch Bloomberg
+    // Fetch Bloomberg (2 articles)
     try {
         const response = await fetch('https://feeds.bloomberg.com/markets/news.rss');
         const text = await response.text();
@@ -762,16 +771,17 @@ async function fetchNewsHeadlines() {
         const xml = parser.parseFromString(text, 'text/xml');
         const items = xml.querySelectorAll('item');
 
-        const bloombergHeadlines = Array.from(items).slice(0, 6).map(item => ({
+        const bloombergHeadlines = Array.from(items).slice(0, 2).map(item => ({
             title: '📈 BLOOMBERG: ' + item.querySelector('title')?.textContent,
-            link: item.querySelector('link')?.textContent
+            link: item.querySelector('link')?.textContent,
+            pubDate: new Date(item.querySelector('pubDate')?.textContent || Date.now())
         }));
         allHeadlines.push(...bloombergHeadlines);
     } catch (error) {
         console.error('Error fetching Bloomberg news:', error);
     }
 
-    // Fetch Wall Street Journal
+    // Fetch Wall Street Journal (2 articles)
     try {
         const response = await fetch('https://feeds.a.dj.com/rss/RSSMarketsMain.xml');
         const text = await response.text();
@@ -779,16 +789,17 @@ async function fetchNewsHeadlines() {
         const xml = parser.parseFromString(text, 'text/xml');
         const items = xml.querySelectorAll('item');
 
-        const wsjHeadlines = Array.from(items).slice(0, 6).map(item => ({
+        const wsjHeadlines = Array.from(items).slice(0, 2).map(item => ({
             title: '📰 WSJ: ' + item.querySelector('title')?.textContent,
-            link: item.querySelector('link')?.textContent
+            link: item.querySelector('link')?.textContent,
+            pubDate: new Date(item.querySelector('pubDate')?.textContent || Date.now())
         }));
         allHeadlines.push(...wsjHeadlines);
     } catch (error) {
         console.error('Error fetching WSJ news:', error);
     }
 
-    // Fetch Reuters Business
+    // Fetch Reuters Business (2 articles)
     try {
         const response = await fetch('https://www.reutersagency.com/feed/?taxonomy=best-topics&post_type=best');
         const text = await response.text();
@@ -796,38 +807,77 @@ async function fetchNewsHeadlines() {
         const xml = parser.parseFromString(text, 'text/xml');
         const items = xml.querySelectorAll('item');
 
-        const reutersHeadlines = Array.from(items).slice(0, 5).map(item => ({
+        const reutersHeadlines = Array.from(items).slice(0, 2).map(item => ({
             title: '📡 REUTERS: ' + item.querySelector('title')?.textContent,
-            link: item.querySelector('link')?.textContent
+            link: item.querySelector('link')?.textContent,
+            pubDate: new Date(item.querySelector('pubDate')?.textContent || Date.now())
         }));
         allHeadlines.push(...reutersHeadlines);
     } catch (error) {
         console.error('Error fetching Reuters news:', error);
     }
 
-    // Fetch CoinTelegraph
+    // Fetch CoinTelegraph (3 articles)
     try {
         const response = await fetch('https://cointelegraph.com/rss');
         const text = await response.text();
         const xml = new DOMParser().parseFromString(text, 'text/xml');
         const items = xml.querySelectorAll('item');
 
-        const ctHeadlines = Array.from(items).slice(0, 8).map(item => ({
+        const ctHeadlines = Array.from(items).slice(0, 3).map(item => ({
             title: '₿ COINTELEGRAPH: ' + item.querySelector('title')?.textContent,
-            link: item.querySelector('link')?.textContent
+            link: item.querySelector('link')?.textContent,
+            pubDate: new Date(item.querySelector('pubDate')?.textContent || Date.now())
         }));
         allHeadlines.push(...ctHeadlines);
     } catch (error) {
         console.error('Error fetching CoinTelegraph news:', error);
     }
 
+    // Fetch CoinDesk (2 articles)
+    try {
+        const response = await fetch('https://www.coindesk.com/arc/outboundfeeds/rss/');
+        const text = await response.text();
+        const xml = new DOMParser().parseFromString(text, 'text/xml');
+        const items = xml.querySelectorAll('item');
+
+        const cdHeadlines = Array.from(items).slice(0, 2).map(item => ({
+            title: '₿ COINDESK: ' + item.querySelector('title')?.textContent,
+            link: item.querySelector('link')?.textContent,
+            pubDate: new Date(item.querySelector('pubDate')?.textContent || Date.now())
+        }));
+        allHeadlines.push(...cdHeadlines);
+    } catch (error) {
+        console.error('Error fetching CoinDesk news:', error);
+    }
+
+    // Fetch Financial Times (1 article)
+    try {
+        const response = await fetch('https://www.ft.com/?format=rss');
+        const text = await response.text();
+        const xml = new DOMParser().parseFromString(text, 'text/xml');
+        const items = xml.querySelectorAll('item');
+
+        const ftHeadlines = Array.from(items).slice(0, 1).map(item => ({
+            title: '📈 FT: ' + item.querySelector('title')?.textContent,
+            link: item.querySelector('link')?.textContent,
+            pubDate: new Date(item.querySelector('pubDate')?.textContent || Date.now())
+        }));
+        allHeadlines.push(...ftHeadlines);
+    } catch (error) {
+        console.error('Error fetching Financial Times news:', error);
+    }
+
     // If we have no headlines at all, show an error
     if (allHeadlines.length === 0) {
         newsHeadlines = [{
             title: '⚠️ News feeds temporarily unavailable. Will retry shortly.',
-            link: '#'
+            link: '#',
+            pubDate: new Date()
         }];
     } else {
+        // Sort by most recent first
+        allHeadlines.sort((a, b) => b.pubDate - a.pubDate);
         newsHeadlines = allHeadlines;
     }
 
@@ -931,7 +981,6 @@ function startDataUpdates() {
     setInterval(fetchFinancialIndicators, 60000); // Every minute when markets open
     if (newsEnabled) {
         setInterval(fetchNewsHeadlines, 600000);
-        setInterval(fetchXTrending, 900000); // Update X trending every 15 min
     }
     if (userZipCode) {
         setInterval(fetchWeather, 600000);
@@ -983,60 +1032,20 @@ function updateNewsHeadlinesList() {
 
     container.innerHTML = '';
 
-    // Show top 10 headlines
-    const top10 = newsHeadlines.slice(0, 10);
-
-    top10.forEach((headline, index) => {
+    // Show all headlines sorted by most recent
+    newsHeadlines.forEach((headline) => {
         const link = document.createElement('a');
         link.href = headline.link;
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
         link.className = 'headline-link';
-        link.textContent = `${index + 1}. ${headline.title}`;
+        link.textContent = headline.title;
 
         container.appendChild(link);
     });
 }
 
-async function fetchXTrending() {
-    try {
-        // Note: X/Twitter API requires authentication and doesn't allow public access
-        // We'll use a fallback with crypto trending topics
-        const trendingTopics = [
-            { topic: '#Bitcoin', count: 'Trending' },
-            { topic: '#Crypto', count: 'Trending' },
-            { topic: '#Ethereum', count: 'Trending' }
-        ];
-
-        updateXTrendingDisplay(trendingTopics);
-    } catch (error) {
-        console.error('Error fetching X trending:', error);
-        document.getElementById('xTrendingList').innerHTML = '<p class="loading">Trending data unavailable</p>';
-    }
-}
-
-function updateXTrendingDisplay(trends) {
-    const container = document.getElementById('xTrendingList');
-
-    if (!trends || trends.length === 0) {
-        container.innerHTML = '<p class="loading">Loading...</p>';
-        return;
-    }
-
-    container.innerHTML = '';
-
-    trends.forEach(trend => {
-        const item = document.createElement('div');
-        item.className = 'trending-item';
-
-        item.innerHTML = `
-            <span class="trending-topic">${trend.topic}</span>
-            <span class="trending-count">${trend.count}</span>
-        `;
-
-        container.appendChild(item);
-    });
-}
+// X Trending removed - API requires authentication and was not functional
 
 function updateNewsTicker() {
     if (!newsEnabled || newsHeadlines.length === 0) return;
@@ -1274,6 +1283,7 @@ function animate() {
     drawArcLines(); // Arc Raiders signature arcs
     drawParticles();
     drawBitcoinSymbol();
+    drawUFO(); // UFO easter egg for fullscreen mode
 
     if (vizMode !== 'calm' && Math.random() < 0.05 && (vizMode === 'extreme_fear' || vizMode === 'extreme_greed' || vizMode === 'singularity')) {
         drawLightning();
@@ -1290,6 +1300,16 @@ function drawTunnel() {
     let speedMultiplier = 0.03;
     let rotationSpeed = 0.08;
 
+    // Bitcoin price correlation - subtle intensity increase based on price movement
+    const btc = coinData['bitcoin'];
+    let btcIntensityBoost = 1.0;
+    if (btc) {
+        const change = btc.price_change_percentage_24h || 0;
+        // Positive change = faster rotation, negative = slower
+        btcIntensityBoost = 1.0 + (change * 0.01); // 10% change = 1.1x speed
+        btcIntensityBoost = Math.max(0.5, Math.min(1.5, btcIntensityBoost)); // Clamp between 0.5x and 1.5x
+    }
+
     if (vizMode === 'singularity') {
         speedMultiplier = 0.15;
         rotationSpeed = 0.3;
@@ -1303,6 +1323,9 @@ function drawTunnel() {
         speedMultiplier = 0.06;
         rotationSpeed = 0.12;
     }
+
+    // Apply Bitcoin correlation boost
+    rotationSpeed *= btcIntensityBoost;
 
     vortexRotation += rotationSpeed * 0.01;
 
@@ -1502,6 +1525,73 @@ function drawBitcoinSymbol() {
     ctx.font = `bold ${coreSize}px Arial`;
     ctx.fillText('₿', x, y);
 
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+}
+
+function drawUFO() {
+    if (!ufoVisible || !isFullscreen) return;
+
+    // Update UFO position
+    ufoX += ufoVelX;
+    ufoY += ufoVelY;
+
+    // Bounce off edges
+    if (ufoX < 0 || ufoX > canvas.width) ufoVelX *= -1;
+    if (ufoY < 0 || ufoY > canvas.height * 0.4) ufoVelY *= -1;
+
+    const time = Date.now() * 0.001;
+    const bobble = Math.sin(time * 3) * 5;
+    const ufoSize = 40;
+
+    ctx.save();
+
+    // UFO body (dome)
+    ctx.beginPath();
+    ctx.ellipse(ufoX, ufoY + bobble, ufoSize * 0.6, ufoSize * 0.4, 0, 0, Math.PI * 2);
+    ctx.fillStyle = COLORS.arc_teal;
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = COLORS.arc_teal;
+    ctx.fill();
+
+    // UFO base (saucer)
+    ctx.beginPath();
+    ctx.ellipse(ufoX, ufoY + bobble + 10, ufoSize, ufoSize * 0.3, 0, 0, Math.PI * 2);
+    ctx.fillStyle = COLORS.miami_cyan;
+    ctx.shadowBlur = 25;
+    ctx.shadowColor = COLORS.miami_cyan;
+    ctx.fill();
+
+    // UFO lights (blinking)
+    const lightOn = Math.floor(time * 4) % 2 === 0;
+    if (lightOn) {
+        for (let i = -1; i <= 1; i++) {
+            ctx.beginPath();
+            ctx.arc(ufoX + i * 15, ufoY + bobble + 10, 3, 0, Math.PI * 2);
+            ctx.fillStyle = i === 0 ? COLORS.electric_yellow : COLORS.hot_pink;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = i === 0 ? COLORS.electric_yellow : COLORS.hot_pink;
+            ctx.fill();
+        }
+    }
+
+    // Tractor beam (occasional)
+    if (Math.floor(time * 0.5) % 3 === 0) {
+        ctx.beginPath();
+        ctx.moveTo(ufoX - 20, ufoY + bobble + 15);
+        ctx.lineTo(ufoX - 40, ufoY + bobble + 100);
+        ctx.lineTo(ufoX + 40, ufoY + bobble + 100);
+        ctx.lineTo(ufoX + 20, ufoY + bobble + 15);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(0, 255, 255, 0.1)';
+        ctx.fill();
+        ctx.strokeStyle = COLORS.neon_cyan;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.3;
+        ctx.stroke();
+    }
+
+    ctx.restore();
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
 }
@@ -1956,6 +2046,19 @@ function setupEventListeners() {
         canvas.requestFullscreen();
     });
 
+    // Detect fullscreen change for UFO easter egg
+    document.addEventListener('fullscreenchange', () => {
+        if (document.fullscreenElement) {
+            isFullscreen = true;
+            ufoVisible = true;
+            ufoX = Math.random() * canvas.width;
+            ufoY = Math.random() * canvas.height * 0.3; // Start in upper portion
+        } else {
+            isFullscreen = false;
+            ufoVisible = false;
+        }
+    });
+
     // Weather
     document.getElementById('editWeatherBtn').addEventListener('click', showWeatherModal);
     document.getElementById('closeWeather').addEventListener('click', hideWeatherModal);
@@ -1981,13 +2084,13 @@ function initArcRaidersIntro() {
     arcIntroCanvas.width = window.innerWidth;
     arcIntroCanvas.height = window.innerHeight;
 
-    // Arc Raiders signature colors - matching the game
+    // Arc Raiders signature colors ONLY - matching the game exactly
     const colors = [
-        '#00ffff',  // Bright cyan
-        '#ffff00',  // Bright yellow
-        '#ff6600',  // Orange
-        '#ff0099',  // Hot pink
-        '#9933ff'   // Purple
+        '#00ffff',  // Arc cyan
+        '#ffff00',  // Arc yellow
+        '#ff6600',  // Arc orange
+        '#00ffff',  // Arc cyan (repeat for consistency)
+        '#ffff00'   // Arc yellow (repeat for consistency)
     ];
 
     // Create curved arc lines from left side (Arc Raiders logo style)
