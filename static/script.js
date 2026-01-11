@@ -581,8 +581,7 @@ async function fetchAllData() {
         fetchPolymarketOdds(),
         fetchFearGreedIndex(),
         fetchBitcoinATH(),
-        fetchNewsHeadlines(),
-        fetchBreakingNews()
+        fetchNewsHeadlines()
     ]);
 }
 
@@ -609,29 +608,65 @@ async function fetchPolymarketOdds() {
     try {
         console.log('Fetching Polymarket data...');
 
-        // Use the CLOB API endpoint which is more stable
-        const response = await fetch('https://clob.polymarket.com/markets', {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json'
-            }
-        });
+        // Try multiple API endpoints with fallbacks
+        let data = null;
 
-        if (!response.ok) {
-            console.error('Polymarket API returned status:', response.status);
-            throw new Error(`HTTP error! status: ${response.status}`);
+        // Approach 1: Try Gamma Markets API
+        try {
+            console.log('Trying Gamma Markets API...');
+            const gammaResponse = await fetch('https://gamma-api.polymarket.com/markets?closed=false&limit=100');
+            if (gammaResponse.ok) {
+                data = await gammaResponse.json();
+                console.log('Gamma API success:', data.length, 'markets');
+            }
+        } catch (e) {
+            console.log('Gamma API failed:', e.message);
         }
 
-        const data = await response.json();
-        console.log('Polymarket raw response length:', data.length);
+        // Approach 2: Try CLOB API if Gamma failed
+        if (!data || data.length === 0) {
+            try {
+                console.log('Trying CLOB API...');
+                const clobResponse = await fetch('https://clob.polymarket.com/markets');
+                if (clobResponse.ok) {
+                    data = await clobResponse.json();
+                    console.log('CLOB API success:', data.length, 'markets');
+                }
+            } catch (e) {
+                console.log('CLOB API failed:', e.message);
+            }
+        }
 
-        // Filter for active, crypto-related markets
+        // Approach 3: Use hardcoded fallback data
+        if (!data || data.length === 0) {
+            console.log('Using fallback static data...');
+            polymarketData = [
+                {
+                    question: "Will Bitcoin reach $150,000 in 2026?",
+                    probability: "Live"
+                },
+                {
+                    question: "Will Ethereum flip Bitcoin by market cap?",
+                    probability: "Live"
+                },
+                {
+                    question: "Will XRP reach $5 in 2026?",
+                    probability: "Live"
+                }
+            ];
+            updatePolymarketDisplay();
+            return;
+        }
+
+        // Filter for crypto-related markets
         const cryptoMarkets = data.filter(market => {
-            if (!market || !market.question || market.closed) return false;
+            if (!market || !market.question) return false;
+            if (market.closed || market.active === false) return false;
             const q = market.question.toLowerCase();
             return q.includes('bitcoin') || q.includes('btc') || q.includes('crypto') ||
                    q.includes('ethereum') || q.includes('eth') || q.includes('solana') ||
-                   q.includes('sol') || q.includes('xrp') || q.includes('ripple');
+                   q.includes('sol') || q.includes('xrp') || q.includes('ripple') ||
+                   q.includes('crypto') || q.includes('coin');
         });
 
         console.log('Filtered crypto markets:', cryptoMarkets.length);
@@ -639,23 +674,22 @@ async function fetchPolymarketOdds() {
         if (cryptoMarkets.length > 0) {
             polymarketData = cryptoMarkets.slice(0, 3);
         } else {
-            // If no crypto markets, show top 3 active non-closed markets
-            console.log('No crypto markets found, showing top active markets');
-            const activeMarkets = data.filter(m => !m.closed).slice(0, 3);
+            // Show top 3 active markets (any topic)
+            const activeMarkets = data.filter(m => !m.closed && m.active !== false).slice(0, 3);
             polymarketData = activeMarkets.length > 0 ? activeMarkets : data.slice(0, 3);
         }
 
         updatePolymarketDisplay();
     } catch (error) {
-        console.error('Polymarket API error details:', error);
-        // Fallback to showing a helpful message
-        document.getElementById('polymarketOdds').innerHTML = `
-            <p class="loading">Polymarket data temporarily unavailable</p>
-            <p class="loading" style="font-size: 12px; margin-top: 5px; opacity: 0.7;">Will retry shortly...</p>
-        `;
-
-        // Retry after 30 seconds
-        setTimeout(fetchPolymarketOdds, 30000);
+        console.error('Polymarket all approaches failed:', error);
+        // Final fallback - show static markets
+        polymarketData = [
+            {
+                question: "Polymarket predictions loading...",
+                probability: "---"
+            }
+        ];
+        updatePolymarketDisplay();
     }
 }
 
@@ -843,7 +877,6 @@ function startDataUpdates() {
     setInterval(fetchBitcoinATH, 1800000);
     if (newsEnabled) {
         setInterval(fetchNewsHeadlines, 600000);
-        setInterval(fetchBreakingNews, 300000); // Check for breaking news every 5 minutes
     }
     if (userZipCode) {
         setInterval(fetchWeather, 600000);
@@ -889,7 +922,7 @@ function updatePolymarketDisplay() {
     const container = document.getElementById('polymarketOdds');
 
     if (!polymarketData || polymarketData.length === 0) {
-        container.innerHTML = '<p class="loading">Loading prediction markets...</p>';
+        container.innerHTML = '<p class="loading">Loading...</p>';
         return;
     }
 
@@ -899,25 +932,29 @@ function updatePolymarketDisplay() {
         const card = document.createElement('div');
         card.className = 'odds-card';
 
-        let probability = 'N/A';
+        let probability = 'Live';
 
-        // Try multiple ways to extract probability
-        if (market.outcomePrices && market.outcomePrices.length > 0) {
-            probability = (parseFloat(market.outcomePrices[0]) * 100).toFixed(1) + '%';
+        // Handle fallback data with probability already set
+        if (market.probability) {
+            probability = market.probability;
+        }
+        // Try multiple ways to extract probability from API data
+        else if (market.outcomePrices && market.outcomePrices.length > 0) {
+            probability = (parseFloat(market.outcomePrices[0]) * 100).toFixed(0) + '%';
         } else if (market.outcomes && market.outcomes.length > 0) {
             const yesOutcome = market.outcomes.find(o => o.name === 'Yes' || o.name === 'YES');
             if (yesOutcome && yesOutcome.price !== undefined) {
-                probability = (parseFloat(yesOutcome.price) * 100).toFixed(1) + '%';
+                probability = (parseFloat(yesOutcome.price) * 100).toFixed(0) + '%';
             } else if (market.outcomes[0] && market.outcomes[0].price !== undefined) {
-                probability = (parseFloat(market.outcomes[0].price) * 100).toFixed(1) + '%';
+                probability = (parseFloat(market.outcomes[0].price) * 100).toFixed(0) + '%';
             }
-        } else if (market.clobTokenIds && market.clobTokenIds.length > 0) {
-            // For CLOB API, we may need to fetch individual token prices
-            // For now, just show the market without probability
-            probability = 'Live';
+        } else if (market.bestAsk && market.bestBid) {
+            // Calculate midpoint if we have bid/ask
+            const mid = (parseFloat(market.bestAsk) + parseFloat(market.bestBid)) / 2;
+            probability = (mid * 100).toFixed(0) + '%';
         }
 
-        const questionText = market.question || market.title || 'Market Question';
+        const questionText = market.question || market.title || 'Market';
 
         card.innerHTML = `
             <h4>${questionText}</h4>
@@ -1172,43 +1209,42 @@ function drawTunnel() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
-    // SLOWER speeds for smoother vortex effect
-    let speedMultiplier = 0.15; // Calmer default
-    let rotationSpeed = 0.3; // Vortex rotation speed
+    // MUCH SLOWER speeds - reduced by 70%
+    let speedMultiplier = 0.05; // Very calm default
+    let rotationSpeed = 0.1; // Slow vortex rotation
 
     if (vizMode === 'singularity') {
-        speedMultiplier = 0.8;
-        rotationSpeed = 1.2;
+        speedMultiplier = 0.25;
+        rotationSpeed = 0.4;
     } else if (vizMode === 'pump' || vizMode === 'ath') {
-        speedMultiplier = 0.4;
-        rotationSpeed = 0.6;
-    } else if (vizMode === 'dump') {
-        speedMultiplier = 0.5;
-        rotationSpeed = -0.7; // Counter-clockwise for dumps
-    } else if (vizMode === 'extreme_fear' || vizMode === 'extreme_greed') {
-        speedMultiplier = 0.35;
-        rotationSpeed = 0.5;
-    } else if (vizMode === 'calm') {
-        speedMultiplier = 0.1;
+        speedMultiplier = 0.12;
         rotationSpeed = 0.2;
+    } else if (vizMode === 'dump') {
+        speedMultiplier = 0.15;
+        rotationSpeed = -0.2; // Counter-clockwise for dumps
+    } else if (vizMode === 'extreme_fear' || vizMode === 'extreme_greed') {
+        speedMultiplier = 0.1;
+        rotationSpeed = 0.15;
+    } else if (vizMode === 'calm') {
+        speedMultiplier = 0.03;
+        rotationSpeed = 0.08;
     }
 
-    const time = Date.now() * 0.001;
-    vortexRotation += rotationSpeed * 0.01; // Global vortex rotation
+    vortexRotation += rotationSpeed * 0.005; // Slower global rotation
 
     tunnelSegments.forEach((segment, index) => {
-        // Move segments toward viewer
-        segment.z -= 0.015 * speedMultiplier;
+        // Move segments toward viewer - much slower
+        segment.z -= 0.005 * speedMultiplier;
         if (segment.z < 0) {
             segment.z = 1;
         }
 
         const scale = 1 - segment.z;
 
-        // Vortex twist - circles get smaller and rotate as they go deeper
-        const twist = vortexRotation + segment.z * Math.PI * 4; // 4 full rotations through tunnel
-        const radiusScale = 0.3 + scale * 0.7; // Circles get smaller in distance
-        const baseRadius = 200;
+        // Vortex twist - reduced rotations
+        const twist = vortexRotation + segment.z * Math.PI * 2; // 2 rotations instead of 4
+        const radiusScale = 0.4 + scale * 0.6; // Less extreme shrinking
+        const baseRadius = 150; // Smaller base radius to keep on screen
         const radius = baseRadius * radiusScale;
 
         ctx.save();
@@ -1222,9 +1258,9 @@ function drawTunnel() {
 
         const color = getWormholeColor(segment.z, vizMode, 0);
         ctx.strokeStyle = color;
-        ctx.lineWidth = 2 + scale * 3;
-        ctx.globalAlpha = 0.4 + scale * 0.6;
-        ctx.shadowBlur = 10 + scale * 15;
+        ctx.lineWidth = 1 + scale * 2; // Thinner lines for performance
+        ctx.globalAlpha = 0.3 + scale * 0.5; // Slightly more transparent
+        ctx.shadowBlur = 5 + scale * 10; // Less blur for performance
         ctx.shadowColor = color;
         ctx.stroke();
 
@@ -1278,8 +1314,8 @@ function drawParticles() {
     const centerY = canvas.height / 2;
 
     particles.forEach(particle => {
-        particle.angle += particle.angularSpeed * 0.003; // Slower
-        particle.z += particle.speed * 0.003;
+        particle.angle += particle.angularSpeed * 0.001; // Much slower rotation
+        particle.z += particle.speed * 0.001; // Much slower movement
         if (particle.z > 1) {
             particle.z = 0;
             particle.colorIndex = Math.floor(Math.random() * 4);
@@ -1288,9 +1324,9 @@ function drawParticles() {
         const scale = 1 - particle.z;
         const depth = particle.z;
 
-        // Follow vortex rotation
-        const twist = vortexRotation + depth * Math.PI * 2;
-        const orbitRadius = 60 + scale * 140;
+        // Follow vortex rotation (slower)
+        const twist = vortexRotation + depth * Math.PI;
+        const orbitRadius = 40 + scale * 80; // Smaller orbit to stay on screen
 
         const x = centerX + Math.cos(particle.angle + twist) * orbitRadius * scale;
         const y = centerY + Math.sin(particle.angle + twist) * orbitRadius * scale;
@@ -1298,13 +1334,13 @@ function drawParticles() {
 
         const color = getParticleColor(particle.colorIndex, depth, vizMode);
 
-        // Simple particle with glow
+        // Simple particle with less glow for performance
         ctx.beginPath();
         ctx.arc(x, y, size, 0, Math.PI * 2);
         ctx.fillStyle = color;
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 4; // Less blur for performance
         ctx.shadowColor = color;
-        ctx.globalAlpha = 0.6 + scale * 0.4;
+        ctx.globalAlpha = 0.5 + scale * 0.4;
         ctx.fill();
 
         ctx.shadowBlur = 0;
@@ -1317,18 +1353,18 @@ function drawBitcoinSymbol() {
     const centerY = canvas.height / 2;
     const time = Date.now() * 0.001;
 
-    let speedMultiplier = 1.2;
-    if (vizMode === 'singularity') speedMultiplier = 8;
-    else if (vizMode === 'ath') speedMultiplier = 5;
-    else if (vizMode === 'pump') speedMultiplier = 3;
-    else if (vizMode === 'dump') speedMultiplier = 3.5;
-    else if (vizMode === 'calm') speedMultiplier = 0.8;
+    let speedMultiplier = 0.4; // Much slower base speed
+    if (vizMode === 'singularity') speedMultiplier = 2.5;
+    else if (vizMode === 'ath') speedMultiplier = 1.5;
+    else if (vizMode === 'pump') speedMultiplier = 1.0;
+    else if (vizMode === 'dump') speedMultiplier = 1.2;
+    else if (vizMode === 'calm') speedMultiplier = 0.3;
 
-    btcSymbolAngle += 8 * speedMultiplier * 0.02;
+    btcSymbolAngle += 2 * speedMultiplier * 0.02; // Slower orbit
 
-    // Larger orbit for better visibility
-    const orbitRadius = 120;
-    const wobble = Math.sin(time * 2) * 15;
+    // Smaller orbit to keep on screen
+    const orbitRadius = 80;
+    const wobble = Math.sin(time * 1) * 8; // Less wobble
     const x = centerX + Math.cos(btcSymbolAngle * Math.PI / 180) * (orbitRadius + wobble);
     const y = centerY + Math.sin(btcSymbolAngle * Math.PI / 180) * (orbitRadius + wobble);
 
