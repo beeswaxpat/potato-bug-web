@@ -125,9 +125,11 @@ let weatherData = null;
 let canvas, ctx;
 let particles = [];
 let tunnelSegments = [];
+let arcLines = []; // Arc Raiders signature arcs
 let btcSymbolAngle = 0;
 let vizMode = 'normal';
 let lightningBolts = [];
+let vortexRotation = 0; // For drain/vortex rotation
 
 // Music and fireworks state
 let musicPlaying = false;
@@ -1088,27 +1090,47 @@ function showRandomImage() {
 // ==================== VISUALIZATION ====================
 
 function initVisualization() {
-    const particleCount = vizQuality === 'low' ? 200 : (vizQuality === 'high' ? 600 : 400);
+    // Mobile-optimized particle counts
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    let particleCount;
+
+    if (isMobile) {
+        particleCount = vizQuality === 'low' ? 50 : (vizQuality === 'high' ? 120 : 80);
+    } else {
+        particleCount = vizQuality === 'low' ? 100 : (vizQuality === 'high' ? 200 : 150);
+    }
 
     for (let i = 0; i < particleCount; i++) {
         particles.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
             z: Math.random(),
-            size: 4 + Math.random() * 8,
-            speed: 0.1 + Math.random() * 0.25,
+            size: 2 + Math.random() * 3, // Smaller particles
+            speed: 0.05 + Math.random() * 0.1,
             angle: Math.random() * Math.PI * 2,
-            angularSpeed: (Math.random() - 0.5) * 10,
+            angularSpeed: (Math.random() - 0.5) * 5,
             hue: Math.random(),
-            colorIndex: Math.floor(Math.random() * 4) // For multi-color particles
+            colorIndex: Math.floor(Math.random() * 4)
         });
     }
 
-    for (let i = 0; i < 120; i++) {
+    // Vortex tunnel segments
+    for (let i = 0; i < 80; i++) {
         tunnelSegments.push({
-            z: i * 0.03,
-            rotation: Math.random() * Math.PI * 2,
+            z: i * 0.04,
+            rotation: 0,
             offset: Math.random() * Math.PI * 2
+        });
+    }
+
+    // Arc Raiders signature arc lines
+    for (let i = 0; i < 6; i++) {
+        arcLines.push({
+            angle: (Math.PI * 2 / 6) * i,
+            length: 0,
+            maxLength: 200 + Math.random() * 100,
+            speed: 0.5 + Math.random() * 1,
+            colorIndex: i % 4
         });
     }
 }
@@ -1135,6 +1157,7 @@ function animate() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     drawTunnel();
+    drawArcLines(); // Arc Raiders signature arcs
     drawParticles();
     drawBitcoinSymbol();
 
@@ -1149,78 +1172,114 @@ function drawTunnel() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
-    // Wormhole effect with traveling sensation
-    let speedMultiplier = 0.4; // Faster default for travel feel
-    let wobble = 20;
-    let pulseIntensity = 0;
+    // SLOWER speeds for smoother vortex effect
+    let speedMultiplier = 0.15; // Calmer default
+    let rotationSpeed = 0.3; // Vortex rotation speed
 
     if (vizMode === 'singularity') {
-        speedMultiplier = 3.0;
-        wobble = 50;
-        pulseIntensity = 30;
+        speedMultiplier = 0.8;
+        rotationSpeed = 1.2;
     } else if (vizMode === 'pump' || vizMode === 'ath') {
-        speedMultiplier = 1.2;
-        wobble = 25;
-        pulseIntensity = 15;
+        speedMultiplier = 0.4;
+        rotationSpeed = 0.6;
     } else if (vizMode === 'dump') {
-        speedMultiplier = 1.5;
-        wobble = 30;
-        pulseIntensity = 20;
+        speedMultiplier = 0.5;
+        rotationSpeed = -0.7; // Counter-clockwise for dumps
     } else if (vizMode === 'extreme_fear' || vizMode === 'extreme_greed') {
-        speedMultiplier = 0.9;
-        wobble = 22;
-        pulseIntensity = 10;
+        speedMultiplier = 0.35;
+        rotationSpeed = 0.5;
     } else if (vizMode === 'calm') {
-        speedMultiplier = 0.3;
-        wobble = 12;
-        pulseIntensity = 5;
+        speedMultiplier = 0.1;
+        rotationSpeed = 0.2;
     }
 
     const time = Date.now() * 0.001;
+    vortexRotation += rotationSpeed * 0.01; // Global vortex rotation
 
     tunnelSegments.forEach((segment, index) => {
-        segment.z -= 0.04 * speedMultiplier;
+        // Move segments toward viewer
+        segment.z -= 0.015 * speedMultiplier;
         if (segment.z < 0) {
             segment.z = 1;
-            segment.offset = Math.random() * Math.PI * 2;
         }
 
         const scale = 1 - segment.z;
-        const pulse = Math.sin(time * 2 + segment.z * 10) * pulseIntensity;
-        const radius = 150 + scale * 350 + Math.sin(segment.rotation * 5 + segment.offset) * wobble + pulse;
 
-        // Draw multiple concentric rings for depth
-        for (let ring = 0; ring < 2; ring++) {
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius * scale + ring * 5, 0, Math.PI * 2);
+        // Vortex twist - circles get smaller and rotate as they go deeper
+        const twist = vortexRotation + segment.z * Math.PI * 4; // 4 full rotations through tunnel
+        const radiusScale = 0.3 + scale * 0.7; // Circles get smaller in distance
+        const baseRadius = 200;
+        const radius = baseRadius * radiusScale;
 
-            const color = getWormholeColor(segment.z, vizMode, ring);
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 4 + scale * 4 - ring;
-            ctx.globalAlpha = (0.5 + scale * 0.5) * (1 - ring * 0.3);
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(twist);
 
-            // Add glow effect
-            ctx.shadowBlur = 15 + scale * 20;
-            ctx.shadowColor = color;
+        // Draw rotating circle with gap (vortex drain effect)
+        ctx.beginPath();
+        const gapSize = Math.PI * 0.3; // 30% gap for drain effect
+        ctx.arc(0, 0, radius, gapSize, Math.PI * 2 - gapSize);
 
-            ctx.stroke();
+        const color = getWormholeColor(segment.z, vizMode, 0);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2 + scale * 3;
+        ctx.globalAlpha = 0.4 + scale * 0.6;
+        ctx.shadowBlur = 10 + scale * 15;
+        ctx.shadowColor = color;
+        ctx.stroke();
+
+        ctx.restore();
+    });
+
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+}
+
+function drawArcLines() {
+    // Arc Raiders signature curved lines at edges
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const time = Date.now() * 0.001;
+
+    arcLines.forEach((arc, index) => {
+        // Grow and shrink arc lines
+        arc.length += arc.speed;
+        if (arc.length > arc.maxLength) {
+            arc.length = 0;
+            arc.maxLength = 200 + Math.random() * 100;
         }
 
-        ctx.shadowBlur = 0;
-        ctx.globalAlpha = 1;
+        const startRadius = 80;
+        const endRadius = startRadius + arc.length;
 
-        segment.rotation += 0.012 * speedMultiplier;
+        // Curved arc path
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, startRadius, arc.angle, arc.angle + 0.3);
+        ctx.arc(centerX, centerY, endRadius, arc.angle + 0.3, arc.angle, true);
+        ctx.closePath();
+
+        // Arc Raiders colors
+        const colors = [COLORS.miami_cyan, COLORS.miami_pink, COLORS.arc_purple, COLORS.electric_yellow];
+        const color = colors[arc.colorIndex];
+
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.3 + Math.sin(time * 2 + index) * 0.2;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = color;
+        ctx.fill();
     });
+
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
 }
 
 function drawParticles() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
-    const time = Date.now() * 0.001;
 
     particles.forEach(particle => {
-        particle.angle += particle.angularSpeed * 0.008;
-        particle.z += particle.speed * 0.008;
+        particle.angle += particle.angularSpeed * 0.003; // Slower
+        particle.z += particle.speed * 0.003;
         if (particle.z > 1) {
             particle.z = 0;
             particle.colorIndex = Math.floor(Math.random() * 4);
@@ -1229,38 +1288,23 @@ function drawParticles() {
         const scale = 1 - particle.z;
         const depth = particle.z;
 
-        // Spiral orbit for wormhole effect
-        const spiralFactor = Math.sin(depth * Math.PI * 2);
-        const orbitRadius = 80 + scale * 220 + spiralFactor * 30;
+        // Follow vortex rotation
+        const twist = vortexRotation + depth * Math.PI * 2;
+        const orbitRadius = 60 + scale * 140;
 
-        const x = centerX + Math.cos(particle.angle) * orbitRadius * scale;
-        const y = centerY + Math.sin(particle.angle) * orbitRadius * scale;
-        const size = particle.size * (scale + 0.3); // Ensure minimum size
+        const x = centerX + Math.cos(particle.angle + twist) * orbitRadius * scale;
+        const y = centerY + Math.sin(particle.angle + twist) * orbitRadius * scale;
+        const size = particle.size * (scale + 0.2);
 
-        // Draw particle with intense glow
         const color = getParticleColor(particle.colorIndex, depth, vizMode);
 
-        // Outer glow
-        ctx.beginPath();
-        ctx.arc(x, y, size * 2, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.globalAlpha = 0.15 * scale;
-        ctx.fill();
-
-        // Main particle
+        // Simple particle with glow
         ctx.beginPath();
         ctx.arc(x, y, size, 0, Math.PI * 2);
         ctx.fillStyle = color;
-        ctx.shadowBlur = 25;
+        ctx.shadowBlur = 8;
         ctx.shadowColor = color;
-        ctx.globalAlpha = 0.7 + scale * 0.3;
-        ctx.fill();
-
-        // Core bright spot
-        ctx.beginPath();
-        ctx.arc(x, y, size * 0.4, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.globalAlpha = 0.9;
+        ctx.globalAlpha = 0.6 + scale * 0.4;
         ctx.fill();
 
         ctx.shadowBlur = 0;
@@ -1446,10 +1490,17 @@ function toggleMusic() {
         btn.style.opacity = '0.7';
         musicPlaying = false;
     } else {
-        audio.play().catch(err => console.error('Audio play failed:', err));
-        btn.textContent = '⏸️ MUSIC';
-        btn.style.opacity = '1';
-        musicPlaying = true;
+        // Try to play with better error handling
+        audio.play().then(() => {
+            btn.textContent = '⏸️ MUSIC';
+            btn.style.opacity = '1';
+            musicPlaying = true;
+            console.log('Music started playing');
+        }).catch(err => {
+            console.error('Audio play failed:', err);
+            addSystemMessage('⚠️ Music failed to load. Try clicking again or check browser settings.');
+            btn.style.opacity = '0.7';
+        });
     }
 }
 
@@ -1476,15 +1527,36 @@ function sendFireworks() {
 }
 
 function triggerFireworks(username) {
+    console.log('🎆 Fireworks triggered by:', username);
     addSystemMessage(`🎆 ${username} triggered fireworks!`);
 
-    // Show canvas
+    // Ensure canvas exists
+    if (!fireworksCanvas) {
+        console.error('Fireworks canvas not found!');
+        initFireworksCanvas();
+    }
+
+    // Clear any existing particles
+    fireworksParticles = [];
+
+    // Show canvas with proper styling
     fireworksCanvas.style.display = 'block';
+    fireworksCanvas.style.position = 'fixed';
+    fireworksCanvas.style.top = '0';
+    fireworksCanvas.style.left = '0';
+    fireworksCanvas.style.width = '100vw';
+    fireworksCanvas.style.height = '100vh';
+    fireworksCanvas.style.pointerEvents = 'none';
+    fireworksCanvas.style.zIndex = '9999';
+
+    console.log('Canvas display:', fireworksCanvas.style.display);
+    console.log('Canvas dimensions:', fireworksCanvas.width, 'x', fireworksCanvas.height);
 
     // Create multiple firework launches
     const launchCount = 8;
     for (let i = 0; i < launchCount; i++) {
         setTimeout(() => {
+            console.log('Creating firework', i + 1);
             createFirework();
         }, i * 300);
     }
@@ -1492,18 +1564,19 @@ function triggerFireworks(username) {
     // Animate fireworks
     animateFireworks();
 
-    // Hide canvas after 5 seconds
+    // Hide canvas after 6 seconds
     setTimeout(() => {
+        console.log('Hiding fireworks canvas');
         fireworksCanvas.style.display = 'none';
         fireworksParticles = [];
-    }, 5000);
+    }, 6000);
 }
 
 function createFirework() {
     const x = Math.random() * fireworksCanvas.width;
     const y = fireworksCanvas.height * 0.3 + Math.random() * fireworksCanvas.height * 0.3;
 
-    const particleCount = 80;
+    const particleCount = 100; // More particles for bigger explosion
     const colors = [
         COLORS.miami_cyan, COLORS.miami_pink, COLORS.arc_purple,
         COLORS.electric_yellow, COLORS.poison_green, COLORS.sunset_orange,
@@ -1511,9 +1584,11 @@ function createFirework() {
     ];
     const color = colors[Math.floor(Math.random() * colors.length)];
 
+    console.log(`Creating firework at (${Math.round(x)}, ${Math.round(y)}) with color ${color}`);
+
     for (let i = 0; i < particleCount; i++) {
         const angle = (Math.PI * 2 * i) / particleCount;
-        const velocity = 2 + Math.random() * 4;
+        const velocity = 3 + Math.random() * 5; // Faster particles for bigger burst
 
         fireworksParticles.push({
             x: x,
@@ -1521,22 +1596,27 @@ function createFirework() {
             vx: Math.cos(angle) * velocity,
             vy: Math.sin(angle) * velocity,
             life: 1.0,
-            decay: 0.01 + Math.random() * 0.01,
-            size: 3 + Math.random() * 3,
+            decay: 0.008 + Math.random() * 0.008, // Slower decay for longer visibility
+            size: 4 + Math.random() * 4, // Bigger particles
             color: color,
-            gravity: 0.05
+            gravity: 0.08 // Slightly more gravity for realistic arc
         });
     }
+
+    console.log('Total fireworks particles:', fireworksParticles.length);
 }
 
 function animateFireworks() {
     if (fireworksParticles.length === 0 && fireworksCanvas.style.display === 'none') {
+        console.log('Fireworks animation stopped - no particles');
         return;
     }
 
-    fireworksCtx.fillStyle = 'rgba(10, 14, 26, 0.1)';
+    // Semi-transparent background for trail effect
+    fireworksCtx.fillStyle = 'rgba(10, 14, 26, 0.15)';
     fireworksCtx.fillRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
 
+    let activeParticles = 0;
     fireworksParticles = fireworksParticles.filter(p => {
         p.x += p.vx;
         p.y += p.vy;
@@ -1545,21 +1625,35 @@ function animateFireworks() {
 
         if (p.life <= 0) return false;
 
-        fireworksCtx.beginPath();
-        fireworksCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        fireworksCtx.fillStyle = p.color;
+        activeParticles++;
+
+        // Draw particle with glow
+        fireworksCtx.save();
         fireworksCtx.globalAlpha = p.life;
-        fireworksCtx.shadowBlur = 15;
+
+        // Outer glow
+        fireworksCtx.beginPath();
+        fireworksCtx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
+        fireworksCtx.fillStyle = p.color;
+        fireworksCtx.shadowBlur = 30;
         fireworksCtx.shadowColor = p.color;
         fireworksCtx.fill();
 
-        fireworksCtx.globalAlpha = 1;
-        fireworksCtx.shadowBlur = 0;
+        // Inner bright core
+        fireworksCtx.beginPath();
+        fireworksCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        fireworksCtx.fillStyle = '#ffffff';
+        fireworksCtx.shadowBlur = 15;
+        fireworksCtx.fill();
+
+        fireworksCtx.restore();
 
         return true;
     });
 
-    requestAnimationFrame(animateFireworks);
+    if (activeParticles > 0 || fireworksCanvas.style.display === 'block') {
+        requestAnimationFrame(animateFireworks);
+    }
 }
 
 // ==================== EVENT LISTENERS ====================

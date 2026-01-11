@@ -92,8 +92,10 @@
         </section>
 
         <!-- Hidden audio element for music -->
-        <audio id="synthMusic" loop>
-            <source src="https://www.bensound.com/bensound-music/bensound-cyberpunk.mp3" type="audio/mpeg">
+        <audio id="synthMusic" loop preload="auto">
+            <!-- Using multiple sources for better compatibility -->
+            <source src="https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3" type="audio/mpeg">
+            <source src="https://cdn.pixabay.com/audio/2022/03/10/audio_4f0ee7db6d.mp3" type="audio/mpeg">
         </audio>
 
         <!-- Weather Section -->
