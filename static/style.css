@@ -371,7 +371,7 @@ section h2 {
 }
 
 .chat-messages {
-    height: 300px;
+    height: 450px;
     overflow-y: auto;
     background: var(--bg-dark);
     border: 2px solid var(--neon-purple);
@@ -709,6 +709,10 @@ section h2 {
 
     .modal-content {
         padding: 20px;
+    }
+
+    .chat-messages {
+        height: 400px;
     }
 }
 

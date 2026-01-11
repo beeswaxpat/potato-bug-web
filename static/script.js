@@ -16,6 +16,8 @@ const WORD_LIST = [
     'hash', 'proof', 'gas', 'fee', 'tip', 'nonce', 'merkle', 'tree'
 ];
 
+const USERNAME_WORDS = ['bug', 'potato', 'goop', 'dino'];
+
 const QUOTES = [
     "I got a lil goop naimeen",
     "An angel of the Lord came to me in a dream and his name was Obi Wagwom.",
@@ -79,7 +81,7 @@ const COLORS = {
 let ws = null;
 let currentRoom = null;
 let currentUsername = null;
-let selectedCoins = ['bitcoin'];
+let selectedCoins = ['bitcoin', 'ripple'];
 let allCoinsList = [];
 let coinData = {};
 let polymarketData = [];
@@ -112,6 +114,15 @@ function generateRoomCode() {
     return `${word1}-${word2}-${word3}-${number}`;
 }
 
+function generateRandomUsername() {
+    const word1 = USERNAME_WORDS[Math.floor(Math.random() * USERNAME_WORDS.length)];
+    const word2 = USERNAME_WORDS[Math.floor(Math.random() * USERNAME_WORDS.length)];
+    // Capitalize first letter of each word
+    const capitalizedWord1 = word1.charAt(0).toUpperCase() + word1.slice(1);
+    const capitalizedWord2 = word2.charAt(0).toUpperCase() + word2.slice(1);
+    return `${capitalizedWord1} ${capitalizedWord2}`;
+}
+
 function validateRoomCode(code) {
     return code && code.length > 0 && code.length <= 20;
 }
@@ -134,20 +145,17 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupRoomModal() {
-    const randomBtn = document.getElementById('randomRoomBtn');
-    const customBtn = document.getElementById('customRoomBtn');
+    const enterBtn = document.getElementById('enterBtn');
     const customInput = document.getElementById('customRoomInput');
     const usernameInput = document.getElementById('usernameInput');
 
-    randomBtn.addEventListener('click', () => {
-        const username = usernameInput.value.trim() || 'Anon' + Math.floor(Math.random() * 1000);
-        const roomCode = generateRoomCode();
-        joinRoom(roomCode, username);
-    });
+    // Auto-generate random username on page load
+    const randomUsername = generateRandomUsername();
+    usernameInput.value = randomUsername;
 
-    customBtn.addEventListener('click', () => {
-        const username = usernameInput.value.trim() || 'Anon' + Math.floor(Math.random() * 1000);
-        const roomCode = customInput.value.trim().toLowerCase();
+    enterBtn.addEventListener('click', () => {
+        const username = usernameInput.value.trim() || generateRandomUsername();
+        const roomCode = customInput.value.trim().toLowerCase() || 'goop';
 
         if (validateRoomCode(roomCode)) {
             joinRoom(roomCode, username);
@@ -157,17 +165,11 @@ function setupRoomModal() {
     });
 
     customInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') customBtn.click();
+        if (e.key === 'Enter') enterBtn.click();
     });
 
     usernameInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            if (customInput.value.trim()) {
-                customBtn.click();
-            } else {
-                randomBtn.click();
-            }
-        }
+        if (e.key === 'Enter') enterBtn.click();
     });
 }
 
@@ -206,7 +208,14 @@ function loadPersistedData() {
         quoteInterval = settings.quoteInterval ?? 3;
         vizQuality = settings.vizQuality ?? 'auto';
         newsEnabled = settings.newsEnabled ?? true;
-        selectedCoins = settings.selectedCoins ?? ['bitcoin'];
+        selectedCoins = settings.selectedCoins ?? ['bitcoin', 'ripple'];
+        // Ensure Bitcoin and XRP are always in the list
+        if (!selectedCoins.includes('bitcoin')) {
+            selectedCoins.unshift('bitcoin');
+        }
+        if (!selectedCoins.includes('ripple')) {
+            selectedCoins.push('ripple');
+        }
         userZipCode = settings.userZipCode ?? null;
 
         setTimeout(() => {
@@ -416,6 +425,7 @@ function addCoin(coinId, coinName) {
 }
 
 function removeCoin(coinId) {
+    // Bitcoin cannot be removed
     if (coinId === 'bitcoin') return;
     selectedCoins = selectedCoins.filter(id => id !== coinId);
     updateSelectedCoinsDisplay();
@@ -429,10 +439,10 @@ function updateSelectedCoinsDisplay() {
 
     selectedCoins.forEach(coinId => {
         const coin = allCoinsList.find(c => c.id === coinId);
-        if (!coin && coinId !== 'bitcoin') return;
+        if (!coin && coinId !== 'bitcoin' && coinId !== 'ripple') return;
 
-        const displayName = coin ? coin.name : 'Bitcoin';
-        const displaySymbol = coin ? coin.symbol : 'BTC';
+        let displayName = coin ? coin.name : (coinId === 'bitcoin' ? 'Bitcoin' : 'XRP');
+        let displaySymbol = coin ? coin.symbol : (coinId === 'bitcoin' ? 'BTC' : 'XRP');
 
         const chip = document.createElement('div');
         chip.className = `coin-chip ${coinId === 'bitcoin' ? 'bitcoin' : ''}`;
@@ -561,10 +571,10 @@ async function fetchCoinPrices() {
 
 async function fetchPolymarketOdds() {
     try {
-        // Use Polymarket's public Gamma API with CORS-friendly endpoint
         console.log('Fetching Polymarket data...');
 
-        const response = await fetch('https://gamma-api.polymarket.com/markets?limit=200&active=true&closed=false', {
+        // Use the CLOB API endpoint which is more stable
+        const response = await fetch('https://clob.polymarket.com/markets', {
             method: 'GET',
             headers: {
                 'Accept': 'application/json'
@@ -572,15 +582,16 @@ async function fetchPolymarketOdds() {
         });
 
         if (!response.ok) {
+            console.error('Polymarket API returned status:', response.status);
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log('Polymarket response:', data);
+        console.log('Polymarket raw response length:', data.length);
 
-        // Filter for crypto-related markets
+        // Filter for active, crypto-related markets
         const cryptoMarkets = data.filter(market => {
-            if (!market || !market.question) return false;
+            if (!market || !market.question || market.closed) return false;
             const q = market.question.toLowerCase();
             return q.includes('bitcoin') || q.includes('btc') || q.includes('crypto') ||
                    q.includes('ethereum') || q.includes('eth') || q.includes('solana') ||
@@ -591,20 +602,24 @@ async function fetchPolymarketOdds() {
 
         if (cryptoMarkets.length > 0) {
             polymarketData = cryptoMarkets.slice(0, 3);
-            updatePolymarketDisplay();
         } else {
-            // If no crypto markets, just show top 3 active markets
-            console.log('No crypto markets found, showing top 3 general markets');
-            polymarketData = data.slice(0, 3);
-            updatePolymarketDisplay();
+            // If no crypto markets, show top 3 active non-closed markets
+            console.log('No crypto markets found, showing top active markets');
+            const activeMarkets = data.filter(m => !m.closed).slice(0, 3);
+            polymarketData = activeMarkets.length > 0 ? activeMarkets : data.slice(0, 3);
         }
+
+        updatePolymarketDisplay();
     } catch (error) {
-        console.error('Polymarket API error:', error);
-        // Show a more helpful error message
+        console.error('Polymarket API error details:', error);
+        // Fallback to showing a helpful message
         document.getElementById('polymarketOdds').innerHTML = `
-            <p class="loading">Loading prediction markets...</p>
-            <p class="loading" style="font-size: 10px; margin-top: 5px;">Checking market data...</p>
+            <p class="loading">Polymarket data temporarily unavailable</p>
+            <p class="loading" style="font-size: 12px; margin-top: 5px; opacity: 0.7;">Will retry shortly...</p>
         `;
+
+        // Retry after 30 seconds
+        setTimeout(fetchPolymarketOdds, 30000);
     }
 }
 
@@ -641,8 +656,8 @@ async function fetchNewsHeadlines() {
         const xml = parser.parseFromString(text, 'text/xml');
         const items = xml.querySelectorAll('item');
 
-        const foxHeadlines = Array.from(items).slice(0, 8).map(item => ({
-            title: '📺 FOX: ' + item.querySelector('title')?.textContent,
+        const foxHeadlines = Array.from(items).slice(0, 6).map(item => ({
+            title: '📺 FOX BIZ: ' + item.querySelector('title')?.textContent,
             link: item.querySelector('link')?.textContent
         }));
         allHeadlines.push(...foxHeadlines);
@@ -658,7 +673,7 @@ async function fetchNewsHeadlines() {
         const xml = parser.parseFromString(text, 'text/xml');
         const items = xml.querySelectorAll('item');
 
-        const cnbcHeadlines = Array.from(items).slice(0, 8).map(item => ({
+        const cnbcHeadlines = Array.from(items).slice(0, 6).map(item => ({
             title: '📊 CNBC: ' + item.querySelector('title')?.textContent,
             link: item.querySelector('link')?.textContent
         }));
@@ -667,24 +682,83 @@ async function fetchNewsHeadlines() {
         console.error('Error fetching CNBC news:', error);
     }
 
-    // Fallback to CoinTelegraph if both fail
-    if (allHeadlines.length === 0) {
-        try {
-            const response = await fetch('https://cointelegraph.com/rss');
-            const text = await response.text();
-            const xml = new DOMParser().parseFromString(text, 'text/xml');
-            const items = xml.querySelectorAll('item');
+    // Fetch Bloomberg
+    try {
+        const response = await fetch('https://feeds.bloomberg.com/markets/news.rss');
+        const text = await response.text();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(text, 'text/xml');
+        const items = xml.querySelectorAll('item');
 
-            allHeadlines = Array.from(items).slice(0, 15).map(item => ({
-                title: item.querySelector('title')?.textContent,
-                link: item.querySelector('link')?.textContent
-            }));
-        } catch (error) {
-            console.error('All news feeds failed:', error);
-        }
+        const bloombergHeadlines = Array.from(items).slice(0, 6).map(item => ({
+            title: '📈 BLOOMBERG: ' + item.querySelector('title')?.textContent,
+            link: item.querySelector('link')?.textContent
+        }));
+        allHeadlines.push(...bloombergHeadlines);
+    } catch (error) {
+        console.error('Error fetching Bloomberg news:', error);
     }
 
-    newsHeadlines = allHeadlines;
+    // Fetch Wall Street Journal
+    try {
+        const response = await fetch('https://feeds.a.dj.com/rss/RSSMarketsMain.xml');
+        const text = await response.text();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(text, 'text/xml');
+        const items = xml.querySelectorAll('item');
+
+        const wsjHeadlines = Array.from(items).slice(0, 6).map(item => ({
+            title: '📰 WSJ: ' + item.querySelector('title')?.textContent,
+            link: item.querySelector('link')?.textContent
+        }));
+        allHeadlines.push(...wsjHeadlines);
+    } catch (error) {
+        console.error('Error fetching WSJ news:', error);
+    }
+
+    // Fetch Reuters Business
+    try {
+        const response = await fetch('https://www.reutersagency.com/feed/?taxonomy=best-topics&post_type=best');
+        const text = await response.text();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(text, 'text/xml');
+        const items = xml.querySelectorAll('item');
+
+        const reutersHeadlines = Array.from(items).slice(0, 5).map(item => ({
+            title: '📡 REUTERS: ' + item.querySelector('title')?.textContent,
+            link: item.querySelector('link')?.textContent
+        }));
+        allHeadlines.push(...reutersHeadlines);
+    } catch (error) {
+        console.error('Error fetching Reuters news:', error);
+    }
+
+    // Fetch CoinTelegraph
+    try {
+        const response = await fetch('https://cointelegraph.com/rss');
+        const text = await response.text();
+        const xml = new DOMParser().parseFromString(text, 'text/xml');
+        const items = xml.querySelectorAll('item');
+
+        const ctHeadlines = Array.from(items).slice(0, 8).map(item => ({
+            title: '₿ COINTELEGRAPH: ' + item.querySelector('title')?.textContent,
+            link: item.querySelector('link')?.textContent
+        }));
+        allHeadlines.push(...ctHeadlines);
+    } catch (error) {
+        console.error('Error fetching CoinTelegraph news:', error);
+    }
+
+    // If we have no headlines at all, show an error
+    if (allHeadlines.length === 0) {
+        newsHeadlines = [{
+            title: '⚠️ News feeds temporarily unavailable. Will retry shortly.',
+            link: '#'
+        }];
+    } else {
+        newsHeadlines = allHeadlines;
+    }
+
     updateNewsTicker();
 }
 
@@ -778,8 +852,8 @@ function updateCoinDisplay() {
 function updatePolymarketDisplay() {
     const container = document.getElementById('polymarketOdds');
 
-    if (polymarketData.length === 0) {
-        container.innerHTML = '<p class="loading">Loading crypto markets...</p>';
+    if (!polymarketData || polymarketData.length === 0) {
+        container.innerHTML = '<p class="loading">Loading prediction markets...</p>';
         return;
     }
 
@@ -790,17 +864,27 @@ function updatePolymarketDisplay() {
         card.className = 'odds-card';
 
         let probability = 'N/A';
+
+        // Try multiple ways to extract probability
         if (market.outcomePrices && market.outcomePrices.length > 0) {
             probability = (parseFloat(market.outcomePrices[0]) * 100).toFixed(1) + '%';
         } else if (market.outcomes && market.outcomes.length > 0) {
-            const yesOutcome = market.outcomes.find(o => o.name === 'Yes');
-            if (yesOutcome && yesOutcome.price) {
-                probability = (yesOutcome.price * 100).toFixed(1) + '%';
+            const yesOutcome = market.outcomes.find(o => o.name === 'Yes' || o.name === 'YES');
+            if (yesOutcome && yesOutcome.price !== undefined) {
+                probability = (parseFloat(yesOutcome.price) * 100).toFixed(1) + '%';
+            } else if (market.outcomes[0] && market.outcomes[0].price !== undefined) {
+                probability = (parseFloat(market.outcomes[0].price) * 100).toFixed(1) + '%';
             }
+        } else if (market.clobTokenIds && market.clobTokenIds.length > 0) {
+            // For CLOB API, we may need to fetch individual token prices
+            // For now, just show the market without probability
+            probability = 'Live';
         }
 
+        const questionText = market.question || market.title || 'Market Question';
+
         card.innerHTML = `
-            <h4>${market.question}</h4>
+            <h4>${questionText}</h4>
             <div class="odds-value">${probability}</div>
         `;
 
@@ -970,24 +1054,24 @@ function showRandomImage() {
 // ==================== VISUALIZATION ====================
 
 function initVisualization() {
-    const particleCount = vizQuality === 'low' ? 100 : (vizQuality === 'high' ? 300 : 200);
+    const particleCount = vizQuality === 'low' ? 150 : (vizQuality === 'high' ? 400 : 250);
 
     for (let i = 0; i < particleCount; i++) {
         particles.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
             z: Math.random(),
-            size: 2 + Math.random() * 4,
-            speed: 0.04 + Math.random() * 0.14,
+            size: 3 + Math.random() * 5,
+            speed: 0.06 + Math.random() * 0.18,
             angle: Math.random() * Math.PI * 2,
-            angularSpeed: (Math.random() - 0.5) * 6,
+            angularSpeed: (Math.random() - 0.5) * 8,
             hue: Math.random()
         });
     }
 
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 80; i++) {
         tunnelSegments.push({
-            z: i * 0.05,
+            z: i * 0.04,
             rotation: Math.random() * Math.PI * 2
         });
     }
@@ -1029,38 +1113,40 @@ function drawTunnel() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
-    // MUCH SLOWER speed multipliers (50% of previous speeds)
-    let speedMultiplier = 0.15; // Default calm (was 0.3)
-    let wobble = 8; // Default calm (was 15)
+    // Enhanced speed multipliers for more vibrant animations
+    let speedMultiplier = 0.25;
+    let wobble = 15;
 
     if (vizMode === 'singularity') {
-        speedMultiplier = 1.5; // Was 3
-        wobble = 25; // Was 50
+        speedMultiplier = 2.0;
+        wobble = 35;
     } else if (vizMode === 'pump' || vizMode === 'ath') {
-        speedMultiplier = 0.6; // Was 1.2
-        wobble = 12; // Was 25
+        speedMultiplier = 0.8;
+        wobble = 20;
     } else if (vizMode === 'extreme_fear' || vizMode === 'extreme_greed') {
-        speedMultiplier = 0.4; // Was 0.8
-        wobble = 10; // Was 20
+        speedMultiplier = 0.6;
+        wobble = 18;
     } else if (vizMode === 'calm') {
-        speedMultiplier = 0.1; // Was 0.2
-        wobble = 5; // Was 10
+        speedMultiplier = 0.15;
+        wobble = 8;
     }
 
     tunnelSegments.forEach(segment => {
-        segment.z -= 0.02 * speedMultiplier; // Half the base speed (was 0.04)
+        segment.z -= 0.025 * speedMultiplier;
         if (segment.z < 0) segment.z = 1;
 
         const scale = 1 - segment.z;
-        const radius = 100 + scale * 200 + Math.sin(segment.rotation * 5) * wobble;
+        const radius = 120 + scale * 250 + Math.sin(segment.rotation * 5) * wobble;
 
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius * scale, 0, Math.PI * 2);
         ctx.strokeStyle = getDynamicColor(segment.z, vizMode);
-        ctx.lineWidth = 2 + scale * 2;
+        ctx.lineWidth = 3 + scale * 3;
+        ctx.globalAlpha = 0.7 + scale * 0.3;
         ctx.stroke();
+        ctx.globalAlpha = 1;
 
-        segment.rotation += 0.005 * speedMultiplier; // Half the rotation speed (was 0.01)
+        segment.rotation += 0.008 * speedMultiplier;
     });
 }
 
@@ -1069,12 +1155,12 @@ function drawParticles() {
     const centerY = canvas.height / 2;
 
     particles.forEach(particle => {
-        particle.angle += particle.angularSpeed * 0.0025; // Half speed (was 0.005)
-        particle.z += particle.speed * 0.0025; // Half speed (was 0.005)
+        particle.angle += particle.angularSpeed * 0.004;
+        particle.z += particle.speed * 0.004;
         if (particle.z > 1) particle.z = 0;
 
         const scale = 1 - particle.z;
-        const orbitRadius = 50 + scale * 150;
+        const orbitRadius = 60 + scale * 180;
 
         const x = centerX + Math.cos(particle.angle) * orbitRadius * scale;
         const y = centerY + Math.sin(particle.angle) * orbitRadius * scale;
@@ -1083,8 +1169,11 @@ function drawParticles() {
         ctx.beginPath();
         ctx.arc(x, y, size, 0, Math.PI * 2);
         ctx.fillStyle = getDynamicColor(particle.hue + particle.z, vizMode);
-        ctx.globalAlpha = 0.3 + scale * 0.7;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = getDynamicColor(particle.hue + particle.z, vizMode);
+        ctx.globalAlpha = 0.5 + scale * 0.5;
         ctx.fill();
+        ctx.shadowBlur = 0;
         ctx.globalAlpha = 1;
     });
 }
@@ -1093,19 +1182,19 @@ function drawBitcoinSymbol() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
-    let speedMultiplier = 0.5; // Calmer default
-    if (vizMode === 'singularity') speedMultiplier = 5;
-    else if (vizMode === 'ath') speedMultiplier = 3;
-    else if (vizMode === 'pump') speedMultiplier = 2;
-    else if (vizMode === 'calm') speedMultiplier = 0.3;
+    let speedMultiplier = 0.8;
+    if (vizMode === 'singularity') speedMultiplier = 6;
+    else if (vizMode === 'ath') speedMultiplier = 4;
+    else if (vizMode === 'pump') speedMultiplier = 2.5;
+    else if (vizMode === 'calm') speedMultiplier = 0.5;
 
-    btcSymbolAngle += 5 * speedMultiplier * 0.01; // Slower base
+    btcSymbolAngle += 6 * speedMultiplier * 0.015;
 
-    const orbitRadius = 75;
+    const orbitRadius = 90;
     const x = centerX + Math.cos(btcSymbolAngle * Math.PI / 180) * orbitRadius;
     const y = centerY + Math.sin(btcSymbolAngle * Math.PI / 180) * orbitRadius;
 
-    ctx.font = 'bold 32px Arial';
+    ctx.font = 'bold 48px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
@@ -1116,10 +1205,16 @@ function drawBitcoinSymbol() {
         color = COLORS.nuclear_green;
     } else if (vizMode === 'dump') {
         color = COLORS.hot_red;
+    } else if (vizMode === 'ath') {
+        color = COLORS.electric_yellow;
     }
 
+    // Add glow effect
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = color;
     ctx.fillStyle = color;
     ctx.fillText('₿', x, y);
+    ctx.shadowBlur = 0;
 }
 
 function drawLightning() {
@@ -1169,27 +1264,43 @@ function updateLightning() {
 }
 
 function getDynamicColor(progress, mode) {
-    let hue;
+    let hue, saturation = 100, lightness = 50;
 
     if (mode === 'extreme_greed') {
-        hue = (progress + 0.3) % 1.0;
+        hue = (progress + 0.25) % 1.0;
+        saturation = 100;
+        lightness = 55;
     } else if (mode === 'extreme_fear') {
         hue = 0.0;
+        saturation = 100;
+        lightness = 50;
     } else if (mode === 'singularity') {
-        hue = (progress * 3) % 1.0;
+        hue = (progress * 5) % 1.0;
+        saturation = 100;
+        lightness = 60;
     } else if (mode === 'pump') {
         hue = 0.33;
+        saturation = 100;
+        lightness = 55;
     } else if (mode === 'dump') {
         hue = 0.0;
+        saturation = 100;
+        lightness = 50;
     } else if (mode === 'ath') {
         hue = 0.14;
+        saturation = 100;
+        lightness = 55;
     } else if (mode === 'calm') {
-        hue = 0.5; // Cyan/blue calm
+        hue = 0.55;
+        saturation = 80;
+        lightness = 50;
     } else {
         hue = progress;
+        saturation = 100;
+        lightness = 55;
     }
 
-    return `hsl(${hue * 360}, 100%, 50%)`;
+    return `hsl(${hue * 360}, ${saturation}%, ${lightness}%)`;
 }
 
 // ==================== EVENT LISTENERS ====================

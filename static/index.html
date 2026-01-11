@@ -25,15 +25,12 @@
             <p class="modal-subtitle">Enter a room to chat with a bug and track crypto</p>
 
             <div class="room-options">
-                <button id="randomRoomBtn" class="primary-btn">Generate Random Room</button>
-                <div class="divider">or</div>
-
                 <div class="username-section">
                     <input type="text" id="usernameInput" placeholder="Your username" maxlength="20">
                 </div>
 
-                <input type="text" id="customRoomInput" placeholder="Enter custom room code" maxlength="20">
-                <button id="customRoomBtn" class="secondary-btn">Join Custom Room</button>
+                <input type="text" id="customRoomInput" placeholder="Room name" maxlength="20" value="goop">
+                <button id="enterBtn" class="primary-btn">ENTER POTATO BUG CRYPTO</button>
             </div>
         </div>
     </div>
@@ -74,11 +71,21 @@
             </div>
         </div>
 
-        <!-- Polymarket Section -->
-        <section class="polymarket-section">
-            <h2>Polymarket Odds</h2>
-            <div id="polymarketOdds" class="polymarket-odds">
-                <p class="loading">Loading odds...</p>
+        <!-- Chat Section (moved up for mobile priority) -->
+        <section class="chat-section">
+            <div class="chat-header">
+                <h2>Chat</h2>
+                <span class="user-count" id="userCount">0 online</span>
+            </div>
+            <div id="chatMessages" class="chat-messages"></div>
+            <div class="chat-interaction-btns">
+                <button id="randomQuoteBtn" class="chat-btn" title="Send random quote">RANDOM</button>
+                <button id="sadEmojiBtn" class="chat-btn emoji-btn" title="Send sad face">😢</button>
+                <button id="rocketEmojiBtn" class="chat-btn emoji-btn" title="Send rocket">🚀</button>
+            </div>
+            <div class="chat-input-container">
+                <input type="text" id="chatInput" placeholder="Type a message..." maxlength="200">
+                <button id="sendBtn">Send</button>
             </div>
         </section>
 
@@ -106,21 +113,11 @@
             </div>
         </div>
 
-        <!-- Chat Section -->
-        <section class="chat-section">
-            <div class="chat-header">
-                <h2>Chat</h2>
-                <span class="user-count" id="userCount">0 online</span>
-            </div>
-            <div id="chatMessages" class="chat-messages"></div>
-            <div class="chat-interaction-btns">
-                <button id="randomQuoteBtn" class="chat-btn" title="Send random quote">RANDOM</button>
-                <button id="sadEmojiBtn" class="chat-btn emoji-btn" title="Send sad face">😢</button>
-                <button id="rocketEmojiBtn" class="chat-btn emoji-btn" title="Send rocket">🚀</button>
-            </div>
-            <div class="chat-input-container">
-                <input type="text" id="chatInput" placeholder="Type a message..." maxlength="200">
-                <button id="sendBtn">Send</button>
+        <!-- Polymarket Section (moved down for mobile) -->
+        <section class="polymarket-section">
+            <h2>Polymarket Odds</h2>
+            <div id="polymarketOdds" class="polymarket-odds">
+                <p class="loading">Loading odds...</p>
             </div>
         </section>
 
