@@ -591,10 +591,11 @@ section h2 {
 
 #psychedelicCanvas {
     width: 100%;
-    height: 400px;
+    height: 500px;
     border-radius: 10px;
     background: var(--bg-dark);
     border: 2px solid var(--neon-magenta);
+    display: block;
 }
 
 .viz-overlay {
@@ -846,7 +847,7 @@ section h2 {
     }
 
     #psychedelicCanvas {
-        height: 250px;
+        height: 350px;
     }
 
     .modal-content {
