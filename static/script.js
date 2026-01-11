@@ -1810,67 +1810,73 @@ function getDynamicColor(progress, mode) {
 
 // ==================== CASSETTE TAPE MUSIC PLAYER ====================
 
-const synthwaveTracks = [
-    { name: 'Neon Nights', url: 'https://cdn.pixabay.com/audio/2024/08/05/audio_ca25bc8e00.mp3' },
-    { name: 'Cyber Dreams', url: 'https://cdn.pixabay.com/audio/2023/10/06/audio_5c63babf76.mp3' },
-    { name: 'Electric Pulse', url: 'https://cdn.pixabay.com/audio/2022/03/22/audio_2348988ac0.mp3' },
-    { name: 'Retro Wave', url: 'https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3' },
-    { name: 'Future Past', url: 'https://ia601500.us.archive.org/23/items/ncs-release-elektronomia-sky-high/Elektronomia%20-%20Sky%20High.mp3' },
-    { name: 'Synthwave City', url: 'https://ia802707.us.archive.org/14/items/ncs-release-approaching-nirvana-sugar-high/Approaching%20Nirvana%20-%20Sugar%20High.mp3' },
-    { name: 'Digital Rain', url: 'https://cdn.pixabay.com/audio/2023/11/29/audio_b43e3aa4ae.mp3' },
-    { name: 'Arc Raiders Mix', url: 'https://cdn.pixabay.com/audio/2024/02/22/audio_20d84c36c8.mp3' }
+// Radio stations - FM/AM style with 24/7 streams
+const radioStations = [
+    { freq: '88.5 FM', name: 'SYNTHWAVE RADIO', url: 'https://stream.nightride.fm/nightride.m4a', band: 'FM' },
+    { freq: '91.3 FM', name: 'CHILLWAVE', url: 'https://stream.nightride.fm/chillsynth.m4a', band: 'FM' },
+    { freq: '95.7 FM', name: 'CYBERPUNK', url: 'https://stream.nightride.fm/cyberpunk.m4a', band: 'FM' },
+    { freq: '98.1 FM', name: 'DARKSYNTH', url: 'https://stream.nightride.fm/darksynth.m4a', band: 'FM' },
+    { freq: '102.5 FM', name: 'OUTRUN', url: 'https://stream.nightride.fm/outrun.m4a', band: 'FM' },
+    { freq: '106.9 FM', name: 'VAPORWAVE', url: 'https://radio.stereoscenic.com/asp-s', band: 'FM' },
+    { freq: '540 AM', name: 'LOFI HIP HOP', url: 'https://streams.ilovemusic.de/iloveradio17.mp3', band: 'AM' },
+    { freq: '810 AM', name: 'ELECTRONIC', url: 'https://streams.ilovemusic.de/iloveradio2.mp3', band: 'AM' },
+    { freq: '1140 AM', name: 'DANCE HITS', url: 'https://streams.ilovemusic.de/iloveradio1.mp3', band: 'AM' }
 ];
 
-let currentTrackIndex = 0;
+let currentStationIndex = 0;
 let isPlaying = false;
+let isScanning = false;
+let scanInterval = null;
 
 function toggleMusic() {
     const cassettePlayer = document.getElementById('cassettePlayer');
 
     if (cassettePlayer.style.display === 'none' || cassettePlayer.style.display === '') {
-        // Show cassette player
+        // Show radio player
         cassettePlayer.style.display = 'block';
-        loadTrack(currentTrackIndex);
-        // Don't send confusing message - user knows to hit play
+        loadStation(currentStationIndex);
     } else {
-        // Hide cassette player and stop music
+        // Hide radio and stop music
         cassettePlayer.style.display = 'none';
+        stopScanning();
         pauseMusic();
     }
 }
 
-function loadTrack(index) {
+function loadStation(index) {
     try {
         const audio = document.getElementById('synthMusic');
-        const track = synthwaveTracks[index];
+        const station = radioStations[index];
 
-        console.log('Loading track:', track.name, 'URL:', track.url);
+        console.log('Tuning to:', station.freq, station.name, 'URL:', station.url);
 
         // Set source and load
-        audio.src = track.url;
+        audio.src = station.url;
         audio.volume = 0.7;
         audio.load();
 
-        // Update UI
-        document.getElementById('cassetteTrackName').textContent = track.name.toUpperCase();
+        // Update UI with frequency and station name
+        document.getElementById('radioFrequency').textContent = station.freq;
+        document.getElementById('radioBand').textContent = station.band;
+        document.getElementById('cassetteTrackName').textContent = station.name;
         document.getElementById('currentTrackNum').textContent = index + 1;
-        document.getElementById('totalTracks').textContent = synthwaveTracks.length;
+        document.getElementById('totalTracks').textContent = radioStations.length;
 
         // Listen for load errors
         audio.onerror = (e) => {
-            console.error('Audio load error:', e);
-            addSystemMessage('⚠️ Failed to load track. Trying next...');
-            nextTrack();
+            console.error('Radio stream error:', e);
+            addSystemMessage('⚠️ Failed to tune station. Trying next...');
+            nextStation();
         };
 
         // Listen for successful load
         audio.onloadeddata = () => {
-            console.log('Track loaded successfully, duration:', audio.duration);
+            console.log('Radio station tuned successfully');
         };
 
     } catch (error) {
-        console.error('Error in loadTrack:', error);
-        addSystemMessage('⚠️ Error loading track');
+        console.error('Error tuning station:', error);
+        addSystemMessage('⚠️ Error tuning radio');
     }
 }
 
@@ -1920,7 +1926,8 @@ function playMusic() {
             leftReel.classList.add('spinning');
             rightReel.classList.add('spinning');
 
-            addSystemMessage('🎵 Now playing: ' + synthwaveTracks[currentTrackIndex].name);
+            const station = radioStations[currentStationIndex];
+            addSystemMessage('📻 Now playing: ' + station.freq + ' - ' + station.name);
         }).catch(err => {
             console.error('❌ PLAY FAILED:', err);
             console.error('Error name:', err.name);
@@ -1963,30 +1970,68 @@ function pauseMusic() {
     console.log('⏸ Paused');
 }
 
-function prevTrack() {
-    currentTrackIndex--;
-    if (currentTrackIndex < 0) {
-        currentTrackIndex = synthwaveTracks.length - 1;
+function prevStation() {
+    stopScanning(); // Stop scan if active
+    currentStationIndex--;
+    if (currentStationIndex < 0) {
+        currentStationIndex = radioStations.length - 1;
     }
-    loadTrack(currentTrackIndex);
+    loadStation(currentStationIndex);
     if (isPlaying) {
         playMusic();
     }
 }
 
-function nextTrack() {
-    currentTrackIndex++;
-    if (currentTrackIndex >= synthwaveTracks.length) {
-        currentTrackIndex = 0;
+function nextStation() {
+    stopScanning(); // Stop scan if active
+    currentStationIndex++;
+    if (currentStationIndex >= radioStations.length) {
+        currentStationIndex = 0;
     }
-    loadTrack(currentTrackIndex);
+    loadStation(currentStationIndex);
     if (isPlaying) {
         playMusic();
+    }
+}
+
+function toggleScan() {
+    if (isScanning) {
+        stopScanning();
+    } else {
+        startScanning();
+    }
+}
+
+function startScanning() {
+    isScanning = true;
+    document.getElementById('scanBtn').style.background = '#ff0000';
+    document.getElementById('scanBtn').textContent = 'STOP';
+    addSystemMessage('📻 Scanning stations...');
+
+    // Scan through stations every 3 seconds
+    scanInterval = setInterval(() => {
+        nextStation();
+        if (isPlaying) {
+            // Auto-play while scanning
+            setTimeout(() => playMusic(), 500);
+        }
+    }, 3000);
+}
+
+function stopScanning() {
+    if (isScanning) {
+        isScanning = false;
+        clearInterval(scanInterval);
+        scanInterval = null;
+        document.getElementById('scanBtn').style.background = '';
+        document.getElementById('scanBtn').textContent = 'SCAN';
+        addSystemMessage('📻 Scan stopped');
     }
 }
 
 function closeCassette() {
     document.getElementById('cassettePlayer').style.display = 'none';
+    stopScanning();
     pauseMusic();
 }
 
@@ -2373,8 +2418,9 @@ function setupEventListeners() {
     // Cassette player controls
     document.getElementById('playBtn')?.addEventListener('click', playMusic);
     document.getElementById('pauseBtn')?.addEventListener('click', pauseMusic);
-    document.getElementById('prevTrack')?.addEventListener('click', prevTrack);
-    document.getElementById('nextTrack')?.addEventListener('click', nextTrack);
+    document.getElementById('prevTrack')?.addEventListener('click', prevStation);
+    document.getElementById('nextTrack')?.addEventListener('click', nextStation);
+    document.getElementById('scanBtn')?.addEventListener('click', toggleScan);
     document.getElementById('closeCassette')?.addEventListener('click', closeCassette);
 
     // Add coin

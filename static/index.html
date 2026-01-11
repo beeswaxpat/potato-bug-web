@@ -102,12 +102,18 @@
         <!-- Cassette Tape Music Player -->
         <div id="cassettePlayer" class="cassette-player" style="display: none;">
             <div class="cassette-header">
-                <span class="cassette-title" id="cassetteTrackName">CYBERPUNK MIX</span>
+                <span class="cassette-title" id="cassetteTrackName">SYNTHWAVE RADIO</span>
                 <button class="cassette-close" id="closeCassette">×</button>
             </div>
 
             <div class="cassette-body">
-                <!-- Tape Reels -->
+                <!-- Radio Frequency Display -->
+                <div class="radio-frequency-display">
+                    <div class="freq-band" id="radioBand">FM</div>
+                    <div class="freq-number" id="radioFrequency">88.5 FM</div>
+                </div>
+
+                <!-- Tape Reels (now representing signal strength) -->
                 <div class="tape-reels">
                     <div class="reel left-reel" id="leftReel">
                         <div class="reel-center"></div>
@@ -125,19 +131,20 @@
                     </div>
                 </div>
 
-                <!-- Track Info -->
+                <!-- Station Info -->
                 <div class="track-info">
                     <div class="track-counter">
-                        <span id="currentTrackNum">1</span> / <span id="totalTracks">8</span>
+                        Station <span id="currentTrackNum">1</span> / <span id="totalTracks">9</span>
                     </div>
                 </div>
 
                 <!-- Controls -->
                 <div class="cassette-controls">
-                    <button class="control-btn" id="prevTrack" title="Previous">◄</button>
+                    <button class="control-btn" id="prevTrack" title="Previous Station">◄◄</button>
                     <button class="control-btn play-btn" id="playBtn" title="Play">►</button>
                     <button class="control-btn" id="pauseBtn" title="Pause" style="display: none;">❚❚</button>
-                    <button class="control-btn" id="nextTrack" title="Next">►</button>
+                    <button class="control-btn" id="nextTrack" title="Next Station">►►</button>
+                    <button class="control-btn scan-btn" id="scanBtn" title="Auto-scan stations">SCAN</button>
                 </div>
             </div>
         </div>
