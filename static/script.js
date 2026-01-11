@@ -2515,14 +2515,19 @@ document.addEventListener('visibilitychange', async () => {
 let arcIntroCanvas, arcIntroCtx;
 let arcIntroLines = [];
 let arcIntroAnimating = false;
+let arcIntroLightning = null;
+let btcChangePercent = 0;
 
-function initArcRaidersIntro() {
+async function initArcRaidersIntro() {
     arcIntroCanvas = document.getElementById('arcRaidersCanvas');
     if (!arcIntroCanvas) return;
 
     arcIntroCtx = arcIntroCanvas.getContext('2d');
     arcIntroCanvas.width = window.innerWidth;
     arcIntroCanvas.height = window.innerHeight;
+
+    // Fetch BTC price change for lightning warning
+    await fetchBTCChangeForIntro();
 
     // Arc Raiders signature colors ONLY - matching the game exactly (4 arcs)
     const colors = [
@@ -2606,6 +2611,11 @@ function animateArcRaidersIntro() {
         arcIntroCtx.restore();
     });
 
+    // Draw lightning strike if BTC moved 5%+
+    if (arcIntroLightning) {
+        drawArcIntroLightning();
+    }
+
     if (!allComplete) {
         requestAnimationFrame(animateArcRaidersIntro);
     } else {
@@ -2658,4 +2668,113 @@ function fadeOutArcRaidersIntro() {
             arcIntroAnimating = false;
         }
     }, 50);
+}
+
+async function fetchBTCChangeForIntro() {
+    try {
+        const response = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&community_data=false&developer_data=false');
+        const data = await response.json();
+        btcChangePercent = data.market_data.price_change_percentage_24h || 0;
+
+        console.log('BTC 24h change:', btcChangePercent.toFixed(2) + '%');
+
+        // Trigger lightning if BTC moved 5%+ either direction
+        if (Math.abs(btcChangePercent) >= 5) {
+            console.log('⚡ Lightning warning triggered! BTC moved', btcChangePercent.toFixed(2) + '%');
+            triggerArcIntroLightning();
+        }
+    } catch (error) {
+        console.error('Failed to fetch BTC change for intro:', error);
+    }
+}
+
+function triggerArcIntroLightning() {
+    // Create a massive lightning strike from top to bottom
+    arcIntroLightning = {
+        segments: [],
+        alpha: 1,
+        frameCount: 0,
+        maxFrames: 45, // Show for ~0.75 seconds
+        color: btcChangePercent > 0 ? '#00ff00' : '#ff0000' // Green for up, red for down
+    };
+
+    // Generate lightning path from top to bottom
+    let currentX = arcIntroCanvas.width / 2;
+    let currentY = 0;
+    const targetY = arcIntroCanvas.height;
+    const segmentLength = 40;
+
+    while (currentY < targetY) {
+        const nextX = currentX + (Math.random() - 0.5) * 80; // Larger horizontal variation
+        const nextY = currentY + segmentLength + Math.random() * 20;
+
+        arcIntroLightning.segments.push({
+            x1: currentX,
+            y1: currentY,
+            x2: nextX,
+            y2: Math.min(nextY, targetY)
+        });
+
+        currentX = nextX;
+        currentY = nextY;
+    }
+}
+
+function drawArcIntroLightning() {
+    if (!arcIntroLightning) return;
+
+    arcIntroLightning.frameCount++;
+
+    // Flash effect - brightness oscillates
+    const flash = Math.sin(arcIntroLightning.frameCount * 0.5) * 0.3 + 0.7;
+
+    arcIntroCtx.save();
+    arcIntroCtx.globalAlpha = arcIntroLightning.alpha * flash;
+
+    // Draw main lightning bolt with glow
+    arcIntroLightning.segments.forEach(segment => {
+        // Outer glow
+        arcIntroCtx.strokeStyle = arcIntroLightning.color;
+        arcIntroCtx.lineWidth = 25;
+        arcIntroCtx.shadowBlur = 60;
+        arcIntroCtx.shadowColor = arcIntroLightning.color;
+        arcIntroCtx.globalAlpha = arcIntroLightning.alpha * flash * 0.3;
+
+        arcIntroCtx.beginPath();
+        arcIntroCtx.moveTo(segment.x1, segment.y1);
+        arcIntroCtx.lineTo(segment.x2, segment.y2);
+        arcIntroCtx.stroke();
+
+        // Middle layer
+        arcIntroCtx.lineWidth = 12;
+        arcIntroCtx.shadowBlur = 30;
+        arcIntroCtx.globalAlpha = arcIntroLightning.alpha * flash * 0.6;
+
+        arcIntroCtx.beginPath();
+        arcIntroCtx.moveTo(segment.x1, segment.y1);
+        arcIntroCtx.lineTo(segment.x2, segment.y2);
+        arcIntroCtx.stroke();
+
+        // Bright core
+        arcIntroCtx.strokeStyle = '#ffffff';
+        arcIntroCtx.lineWidth = 4;
+        arcIntroCtx.shadowBlur = 15;
+        arcIntroCtx.shadowColor = '#ffffff';
+        arcIntroCtx.globalAlpha = arcIntroLightning.alpha * flash;
+
+        arcIntroCtx.beginPath();
+        arcIntroCtx.moveTo(segment.x1, segment.y1);
+        arcIntroCtx.lineTo(segment.x2, segment.y2);
+        arcIntroCtx.stroke();
+    });
+
+    arcIntroCtx.restore();
+
+    // Remove lightning after max frames
+    if (arcIntroLightning.frameCount >= arcIntroLightning.maxFrames) {
+        arcIntroLightning = null;
+    } else if (arcIntroLightning.frameCount > arcIntroLightning.maxFrames - 15) {
+        // Fade out in last 15 frames
+        arcIntroLightning.alpha = (arcIntroLightning.maxFrames - arcIntroLightning.frameCount) / 15;
+    }
 }
