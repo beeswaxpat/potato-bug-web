@@ -220,6 +220,11 @@ header {
     border: 1px solid var(--nuclear-green);
 }
 
+#shareRoomBtn {
+    font-size: 14px;
+    padding: 4px 8px;
+}
+
 .header-right {
     display: flex;
     gap: 8px;

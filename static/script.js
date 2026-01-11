@@ -136,6 +136,7 @@ let vortexRotation = 0; // For drain/vortex rotation
 let musicPlaying = false;
 let fireworksCanvas, fireworksCtx;
 let fireworksParticles = [];
+let fireworksTimeout = null;
 
 // UFO easter egg for fullscreen mode
 let isFullscreen = false;
@@ -198,7 +199,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     detectVizQuality();
     fetchAllCoinsList();
+    checkURLParameters();
+
+    // Handle back button during fireworks
+    window.addEventListener('popstate', () => {
+        if (fireworksCanvas && fireworksCanvas.style.display === 'block') {
+            endFireworks();
+        }
+    });
 });
+
+function checkURLParameters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('room');
+
+    if (roomParam) {
+        const customInput = document.getElementById('customRoomInput');
+        if (customInput) {
+            customInput.value = roomParam.toLowerCase();
+        }
+    }
+}
 
 function setupRoomModal() {
     const enterBtn = document.getElementById('enterBtn');
@@ -216,7 +237,7 @@ function setupRoomModal() {
         if (validateRoomCode(roomCode)) {
             joinRoom(roomCode, username);
         } else {
-            alert('Invalid room code');
+            alert('Invalid chatroom name');
         }
     });
 
@@ -427,6 +448,46 @@ function sendEmoji(emoji) {
             message: emoji
         }));
     }
+}
+
+function shareRoom() {
+    const roomLink = `${window.location.origin}${window.location.pathname}?room=${currentRoom}`;
+
+    // Try to use Web Share API for mobile
+    if (navigator.share) {
+        navigator.share({
+            title: 'Join my PotatoBug chatroom!',
+            text: `Join chatroom "${currentRoom}" on PotatoBug - Pick your name and let's track crypto together!`,
+            url: roomLink
+        }).then(() => {
+            console.log('Room shared successfully');
+        }).catch((error) => {
+            console.log('Error sharing:', error);
+            // Fallback to clipboard
+            copyToClipboard(roomLink);
+        });
+    } else {
+        // Fallback to clipboard for desktop
+        copyToClipboard(roomLink);
+    }
+}
+
+function copyToClipboard(text) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+            addSystemMessage('🔗 Chatroom link copied to clipboard!');
+        }).catch((err) => {
+            console.error('Failed to copy:', err);
+            showManualCopyPrompt(text);
+        });
+    } else {
+        showManualCopyPrompt(text);
+    }
+}
+
+function showManualCopyPrompt(text) {
+    const message = `Copy this link to share the chatroom:\n${text}`;
+    prompt(message, text);
 }
 
 // ==================== COIN MANAGEMENT ====================
@@ -1989,12 +2050,22 @@ function triggerFireworks(username) {
     // Animate fireworks
     animateFireworks();
 
-    // Hide canvas after 6 seconds
-    setTimeout(() => {
+    // Hide canvas after 5 seconds
+    fireworksTimeout = setTimeout(() => {
         console.log('Hiding fireworks canvas');
+        endFireworks();
+    }, 5000);
+}
+
+function endFireworks() {
+    if (fireworksCanvas) {
         fireworksCanvas.style.display = 'none';
-        fireworksParticles = [];
-    }, 6000);
+    }
+    fireworksParticles = [];
+    if (fireworksTimeout) {
+        clearTimeout(fireworksTimeout);
+        fireworksTimeout = null;
+    }
 }
 
 function createFirework() {
@@ -2312,6 +2383,9 @@ function setupEventListeners() {
     document.getElementById('coinSearchInput').addEventListener('input', (e) => {
         searchCoins(e.target.value);
     });
+
+    // Share room button
+    document.getElementById('shareRoomBtn').addEventListener('click', shareRoom);
 
     // Theme toggle
     document.getElementById('themeToggle').addEventListener('click', () => {
