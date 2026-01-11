@@ -1135,3 +1135,29 @@ body.light-mode .chat-btn {
 body.light-mode .chat-btn:hover {
     background: #ff00ff;
 }
+
+/* Fireworks Canvas */
+#fireworksCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+/* Music and Fireworks Buttons */
+.music-btn {
+    background: linear-gradient(135deg, var(--miami_cyan), var(--miami-pink)) !important;
+}
+
+.fireworks-btn {
+    background: linear-gradient(135deg, var(--sunset-orange), var(--vice-magenta)) !important;
+    animation: pulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 5px var(--vice-magenta); }
+    50% { box-shadow: 0 0 20px var(--sunset-orange), 0 0 30px var(--vice-magenta); }
+}

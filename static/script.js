@@ -61,19 +61,44 @@ const QUOTES = [
     "Ecosystem bug in full effect"
 ];
 
+// Arc Raiders 80s Miami Retro Cyberpunk Color Palette
 const COLORS = {
     bg_dark: '#0a0e1a',
     bg_medium: '#1a1f35',
-    neon_cyan: '#00f3ff',
+
+    // 80s Miami Vice Colors
+    miami_pink: '#ff006e',      // Hot Miami pink
+    miami_cyan: '#00f5ff',      // Bright cyan
+    miami_purple: '#8b00ff',    // Deep purple
+    sunset_orange: '#ff4500',   // Miami sunset
+    vice_magenta: '#ff00aa',    // Vice magenta
+
+    // Cyberpunk Neons
+    neon_cyan: '#00ffff',
     neon_magenta: '#ff00ff',
     neon_purple: '#b026ff',
-    hot_pink: '#ff0080',
+    hot_pink: '#ff1493',
     nuclear_green: '#39ff14',
-    electric_yellow: '#fffc00',
+    electric_yellow: '#ffff00',
     neon_orange: '#ff6600',
-    electric_blue: '#0080ff',
+    electric_blue: '#00d4ff',
+
+    // Arc Raiders Signature Colors
+    arc_blue: '#0affff',        // Bright electric blue
+    arc_pink: '#ff0090',        // Vibrant pink
+    arc_purple: '#9d00ff',      // Deep purple
+    arc_teal: '#00ffcc',        // Teal accent
+
+    // Market Colors
     gold: '#ffd700',
-    hot_red: '#ff0040'
+    blood_red: '#ff0000',       // Deep red for dumps
+    poison_green: '#00ff41',    // Toxic green for pumps
+
+    // Calm Mode (80s Retro Lounge)
+    retro_pink: '#ff6ec7',
+    retro_blue: '#00d4ff',
+    retro_purple: '#b794f6',
+    retro_teal: '#00ffcc'
 };
 
 // ==================== STATE ====================
@@ -103,6 +128,11 @@ let tunnelSegments = [];
 let btcSymbolAngle = 0;
 let vizMode = 'normal';
 let lightningBolts = [];
+
+// Music and fireworks state
+let musicPlaying = false;
+let fireworksCanvas, fireworksCtx;
+let fireworksParticles = [];
 
 // ==================== ROOM CODE SYSTEM ====================
 
@@ -192,6 +222,7 @@ function joinRoom(roomCode, username) {
     animate();
     startChatQuoteRotation();
     updateSelectedCoinsDisplay();
+    initFireworksCanvas();
 
     if (userZipCode) {
         fetchWeather();
@@ -282,6 +313,9 @@ function handleWebSocketMessage(data) {
         addSystemMessage(`${data.username} left`);
     } else if (data.type === 'user_count') {
         document.getElementById('userCount').textContent = `${data.count} online`;
+    } else if (data.type === 'fireworks') {
+        // Trigger fireworks for all users in the room
+        triggerFireworks(data.username);
     }
 }
 
@@ -1054,25 +1088,27 @@ function showRandomImage() {
 // ==================== VISUALIZATION ====================
 
 function initVisualization() {
-    const particleCount = vizQuality === 'low' ? 150 : (vizQuality === 'high' ? 400 : 250);
+    const particleCount = vizQuality === 'low' ? 200 : (vizQuality === 'high' ? 600 : 400);
 
     for (let i = 0; i < particleCount; i++) {
         particles.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
             z: Math.random(),
-            size: 3 + Math.random() * 5,
-            speed: 0.06 + Math.random() * 0.18,
+            size: 4 + Math.random() * 8,
+            speed: 0.1 + Math.random() * 0.25,
             angle: Math.random() * Math.PI * 2,
-            angularSpeed: (Math.random() - 0.5) * 8,
-            hue: Math.random()
+            angularSpeed: (Math.random() - 0.5) * 10,
+            hue: Math.random(),
+            colorIndex: Math.floor(Math.random() * 4) // For multi-color particles
         });
     }
 
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 120; i++) {
         tunnelSegments.push({
-            z: i * 0.04,
-            rotation: Math.random() * Math.PI * 2
+            z: i * 0.03,
+            rotation: Math.random() * Math.PI * 2,
+            offset: Math.random() * Math.PI * 2
         });
     }
 }
@@ -1113,66 +1149,120 @@ function drawTunnel() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
-    // Enhanced speed multipliers for more vibrant animations
-    let speedMultiplier = 0.25;
-    let wobble = 15;
+    // Wormhole effect with traveling sensation
+    let speedMultiplier = 0.4; // Faster default for travel feel
+    let wobble = 20;
+    let pulseIntensity = 0;
 
     if (vizMode === 'singularity') {
-        speedMultiplier = 2.0;
-        wobble = 35;
+        speedMultiplier = 3.0;
+        wobble = 50;
+        pulseIntensity = 30;
     } else if (vizMode === 'pump' || vizMode === 'ath') {
-        speedMultiplier = 0.8;
-        wobble = 20;
+        speedMultiplier = 1.2;
+        wobble = 25;
+        pulseIntensity = 15;
+    } else if (vizMode === 'dump') {
+        speedMultiplier = 1.5;
+        wobble = 30;
+        pulseIntensity = 20;
     } else if (vizMode === 'extreme_fear' || vizMode === 'extreme_greed') {
-        speedMultiplier = 0.6;
-        wobble = 18;
+        speedMultiplier = 0.9;
+        wobble = 22;
+        pulseIntensity = 10;
     } else if (vizMode === 'calm') {
-        speedMultiplier = 0.15;
-        wobble = 8;
+        speedMultiplier = 0.3;
+        wobble = 12;
+        pulseIntensity = 5;
     }
 
-    tunnelSegments.forEach(segment => {
-        segment.z -= 0.025 * speedMultiplier;
-        if (segment.z < 0) segment.z = 1;
+    const time = Date.now() * 0.001;
+
+    tunnelSegments.forEach((segment, index) => {
+        segment.z -= 0.04 * speedMultiplier;
+        if (segment.z < 0) {
+            segment.z = 1;
+            segment.offset = Math.random() * Math.PI * 2;
+        }
 
         const scale = 1 - segment.z;
-        const radius = 120 + scale * 250 + Math.sin(segment.rotation * 5) * wobble;
+        const pulse = Math.sin(time * 2 + segment.z * 10) * pulseIntensity;
+        const radius = 150 + scale * 350 + Math.sin(segment.rotation * 5 + segment.offset) * wobble + pulse;
 
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius * scale, 0, Math.PI * 2);
-        ctx.strokeStyle = getDynamicColor(segment.z, vizMode);
-        ctx.lineWidth = 3 + scale * 3;
-        ctx.globalAlpha = 0.7 + scale * 0.3;
-        ctx.stroke();
+        // Draw multiple concentric rings for depth
+        for (let ring = 0; ring < 2; ring++) {
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius * scale + ring * 5, 0, Math.PI * 2);
+
+            const color = getWormholeColor(segment.z, vizMode, ring);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 4 + scale * 4 - ring;
+            ctx.globalAlpha = (0.5 + scale * 0.5) * (1 - ring * 0.3);
+
+            // Add glow effect
+            ctx.shadowBlur = 15 + scale * 20;
+            ctx.shadowColor = color;
+
+            ctx.stroke();
+        }
+
+        ctx.shadowBlur = 0;
         ctx.globalAlpha = 1;
 
-        segment.rotation += 0.008 * speedMultiplier;
+        segment.rotation += 0.012 * speedMultiplier;
     });
 }
 
 function drawParticles() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
+    const time = Date.now() * 0.001;
 
     particles.forEach(particle => {
-        particle.angle += particle.angularSpeed * 0.004;
-        particle.z += particle.speed * 0.004;
-        if (particle.z > 1) particle.z = 0;
+        particle.angle += particle.angularSpeed * 0.008;
+        particle.z += particle.speed * 0.008;
+        if (particle.z > 1) {
+            particle.z = 0;
+            particle.colorIndex = Math.floor(Math.random() * 4);
+        }
 
         const scale = 1 - particle.z;
-        const orbitRadius = 60 + scale * 180;
+        const depth = particle.z;
+
+        // Spiral orbit for wormhole effect
+        const spiralFactor = Math.sin(depth * Math.PI * 2);
+        const orbitRadius = 80 + scale * 220 + spiralFactor * 30;
 
         const x = centerX + Math.cos(particle.angle) * orbitRadius * scale;
         const y = centerY + Math.sin(particle.angle) * orbitRadius * scale;
-        const size = particle.size * scale;
+        const size = particle.size * (scale + 0.3); // Ensure minimum size
 
+        // Draw particle with intense glow
+        const color = getParticleColor(particle.colorIndex, depth, vizMode);
+
+        // Outer glow
+        ctx.beginPath();
+        ctx.arc(x, y, size * 2, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.15 * scale;
+        ctx.fill();
+
+        // Main particle
         ctx.beginPath();
         ctx.arc(x, y, size, 0, Math.PI * 2);
-        ctx.fillStyle = getDynamicColor(particle.hue + particle.z, vizMode);
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = getDynamicColor(particle.hue + particle.z, vizMode);
-        ctx.globalAlpha = 0.5 + scale * 0.5;
+        ctx.fillStyle = color;
+        ctx.shadowBlur = 25;
+        ctx.shadowColor = color;
+        ctx.globalAlpha = 0.7 + scale * 0.3;
         ctx.fill();
+
+        // Core bright spot
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.globalAlpha = 0.9;
+        ctx.fill();
+
         ctx.shadowBlur = 0;
         ctx.globalAlpha = 1;
     });
@@ -1181,40 +1271,84 @@ function drawParticles() {
 function drawBitcoinSymbol() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
+    const time = Date.now() * 0.001;
 
-    let speedMultiplier = 0.8;
-    if (vizMode === 'singularity') speedMultiplier = 6;
-    else if (vizMode === 'ath') speedMultiplier = 4;
-    else if (vizMode === 'pump') speedMultiplier = 2.5;
-    else if (vizMode === 'calm') speedMultiplier = 0.5;
+    let speedMultiplier = 1.2;
+    if (vizMode === 'singularity') speedMultiplier = 8;
+    else if (vizMode === 'ath') speedMultiplier = 5;
+    else if (vizMode === 'pump') speedMultiplier = 3;
+    else if (vizMode === 'dump') speedMultiplier = 3.5;
+    else if (vizMode === 'calm') speedMultiplier = 0.8;
 
-    btcSymbolAngle += 6 * speedMultiplier * 0.015;
+    btcSymbolAngle += 8 * speedMultiplier * 0.02;
 
-    const orbitRadius = 90;
-    const x = centerX + Math.cos(btcSymbolAngle * Math.PI / 180) * orbitRadius;
-    const y = centerY + Math.sin(btcSymbolAngle * Math.PI / 180) * orbitRadius;
+    // Larger orbit for better visibility
+    const orbitRadius = 120;
+    const wobble = Math.sin(time * 2) * 15;
+    const x = centerX + Math.cos(btcSymbolAngle * Math.PI / 180) * (orbitRadius + wobble);
+    const y = centerY + Math.sin(btcSymbolAngle * Math.PI / 180) * (orbitRadius + wobble);
 
-    ctx.font = 'bold 48px Arial';
+    // Pulsing effect
+    const pulse = 1 + Math.sin(time * 3) * 0.15;
+    const fontSize = 64 * pulse;
+
+    ctx.font = `bold ${fontSize}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
     let color = COLORS.gold;
+    let glowColor = COLORS.gold;
+
     if (vizMode === 'singularity') {
-        color = getDynamicColor(Date.now() * 0.001, vizMode);
+        const hue = (time * 100) % 360;
+        color = `hsl(${hue}, 100%, 60%)`;
+        glowColor = color;
     } else if (vizMode === 'pump') {
-        color = COLORS.nuclear_green;
+        color = COLORS.poison_green;
+        glowColor = COLORS.poison_green;
     } else if (vizMode === 'dump') {
-        color = COLORS.hot_red;
+        color = COLORS.blood_red;
+        glowColor = COLORS.blood_red;
     } else if (vizMode === 'ath') {
         color = COLORS.electric_yellow;
+        glowColor = COLORS.electric_yellow;
+    } else {
+        // Miami retro colors for calm mode
+        color = COLORS.miami_cyan;
+        glowColor = COLORS.miami_pink;
     }
 
-    // Add glow effect
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = color;
+    // Massive glow halo
+    ctx.shadowBlur = 50;
+    ctx.shadowColor = glowColor;
+
+    // Outer glow ring
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = glowColor;
+    ctx.fillText('₿', x, y);
+
+    // Mid glow
+    ctx.shadowBlur = 35;
+    ctx.globalAlpha = 0.6;
     ctx.fillStyle = color;
     ctx.fillText('₿', x, y);
+
+    // Main symbol
+    ctx.shadowBlur = 25;
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = color;
+    ctx.fillText('₿', x, y);
+
+    // Bright core
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#ffffff';
+    ctx.globalAlpha = 0.5;
+    const coreSize = fontSize * 0.8;
+    ctx.font = `bold ${coreSize}px Arial`;
+    ctx.fillText('₿', x, y);
+
     ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
 }
 
 function drawLightning() {
@@ -1263,44 +1397,169 @@ function updateLightning() {
     });
 }
 
-function getDynamicColor(progress, mode) {
-    let hue, saturation = 100, lightness = 50;
+// Arc Raiders 80s Miami color functions
+function getWormholeColor(depth, mode, ring = 0) {
+    const colors = {
+        calm: [COLORS.miami_cyan, COLORS.miami_pink, COLORS.retro_purple, COLORS.arc_teal],
+        pump: [COLORS.poison_green, COLORS.nuclear_green, COLORS.arc_teal, COLORS.electric_yellow],
+        dump: [COLORS.blood_red, COLORS.miami_pink, COLORS.sunset_orange, COLORS.vice_magenta],
+        singularity: [COLORS.arc_purple, COLORS.neon_magenta, COLORS.miami_cyan, COLORS.electric_yellow],
+        ath: [COLORS.gold, COLORS.electric_yellow, COLORS.sunset_orange, COLORS.miami_pink],
+        extreme_greed: [COLORS.poison_green, COLORS.arc_teal, COLORS.electric_blue, COLORS.nuclear_green],
+        extreme_fear: [COLORS.blood_red, COLORS.miami_pink, COLORS.neon_orange, COLORS.vice_magenta]
+    };
 
-    if (mode === 'extreme_greed') {
-        hue = (progress + 0.25) % 1.0;
-        saturation = 100;
-        lightness = 55;
-    } else if (mode === 'extreme_fear') {
-        hue = 0.0;
-        saturation = 100;
-        lightness = 50;
-    } else if (mode === 'singularity') {
-        hue = (progress * 5) % 1.0;
-        saturation = 100;
-        lightness = 60;
-    } else if (mode === 'pump') {
-        hue = 0.33;
-        saturation = 100;
-        lightness = 55;
-    } else if (mode === 'dump') {
-        hue = 0.0;
-        saturation = 100;
-        lightness = 50;
-    } else if (mode === 'ath') {
-        hue = 0.14;
-        saturation = 100;
-        lightness = 55;
-    } else if (mode === 'calm') {
-        hue = 0.55;
-        saturation = 80;
-        lightness = 50;
+    const palette = colors[mode] || colors.calm;
+    const index = Math.floor(depth * palette.length) % palette.length;
+    return palette[index];
+}
+
+function getParticleColor(colorIndex, depth, mode) {
+    const palettes = {
+        calm: [COLORS.miami_cyan, COLORS.miami_pink, COLORS.miami_purple, COLORS.arc_teal],
+        pump: [COLORS.poison_green, COLORS.arc_teal, COLORS.electric_yellow, COLORS.nuclear_green],
+        dump: [COLORS.blood_red, COLORS.sunset_orange, COLORS.miami_pink, COLORS.vice_magenta],
+        singularity: [COLORS.neon_cyan, COLORS.neon_magenta, COLORS.arc_purple, COLORS.electric_yellow],
+        ath: [COLORS.gold, COLORS.electric_yellow, COLORS.miami_cyan, COLORS.miami_pink],
+        extreme_greed: [COLORS.nuclear_green, COLORS.arc_teal, COLORS.poison_green, COLORS.electric_blue],
+        extreme_fear: [COLORS.blood_red, COLORS.sunset_orange, COLORS.vice_magenta, COLORS.miami_pink]
+    };
+
+    const palette = palettes[mode] || palettes.calm;
+    return palette[colorIndex % palette.length];
+}
+
+function getDynamicColor(progress, mode) {
+    // Legacy function for backwards compatibility
+    return getWormholeColor(progress, mode, 0);
+}
+
+// ==================== MUSIC PLAYER ====================
+
+function toggleMusic() {
+    const audio = document.getElementById('synthMusic');
+    const btn = document.getElementById('musicBtn');
+
+    if (musicPlaying) {
+        audio.pause();
+        btn.textContent = '🎵 MUSIC';
+        btn.style.opacity = '0.7';
+        musicPlaying = false;
     } else {
-        hue = progress;
-        saturation = 100;
-        lightness = 55;
+        audio.play().catch(err => console.error('Audio play failed:', err));
+        btn.textContent = '⏸️ MUSIC';
+        btn.style.opacity = '1';
+        musicPlaying = true;
+    }
+}
+
+// ==================== FIREWORKS SYSTEM ====================
+
+function initFireworksCanvas() {
+    fireworksCanvas = document.getElementById('fireworksCanvas');
+    fireworksCtx = fireworksCanvas.getContext('2d');
+    fireworksCanvas.width = window.innerWidth;
+    fireworksCanvas.height = window.innerHeight;
+
+    window.addEventListener('resize', () => {
+        fireworksCanvas.width = window.innerWidth;
+        fireworksCanvas.height = window.innerHeight;
+    });
+}
+
+function sendFireworks() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: 'fireworks'
+        }));
+    }
+}
+
+function triggerFireworks(username) {
+    addSystemMessage(`🎆 ${username} triggered fireworks!`);
+
+    // Show canvas
+    fireworksCanvas.style.display = 'block';
+
+    // Create multiple firework launches
+    const launchCount = 8;
+    for (let i = 0; i < launchCount; i++) {
+        setTimeout(() => {
+            createFirework();
+        }, i * 300);
     }
 
-    return `hsl(${hue * 360}, ${saturation}%, ${lightness}%)`;
+    // Animate fireworks
+    animateFireworks();
+
+    // Hide canvas after 5 seconds
+    setTimeout(() => {
+        fireworksCanvas.style.display = 'none';
+        fireworksParticles = [];
+    }, 5000);
+}
+
+function createFirework() {
+    const x = Math.random() * fireworksCanvas.width;
+    const y = fireworksCanvas.height * 0.3 + Math.random() * fireworksCanvas.height * 0.3;
+
+    const particleCount = 80;
+    const colors = [
+        COLORS.miami_cyan, COLORS.miami_pink, COLORS.arc_purple,
+        COLORS.electric_yellow, COLORS.poison_green, COLORS.sunset_orange,
+        COLORS.neon_magenta, COLORS.arc_teal
+    ];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+
+    for (let i = 0; i < particleCount; i++) {
+        const angle = (Math.PI * 2 * i) / particleCount;
+        const velocity = 2 + Math.random() * 4;
+
+        fireworksParticles.push({
+            x: x,
+            y: y,
+            vx: Math.cos(angle) * velocity,
+            vy: Math.sin(angle) * velocity,
+            life: 1.0,
+            decay: 0.01 + Math.random() * 0.01,
+            size: 3 + Math.random() * 3,
+            color: color,
+            gravity: 0.05
+        });
+    }
+}
+
+function animateFireworks() {
+    if (fireworksParticles.length === 0 && fireworksCanvas.style.display === 'none') {
+        return;
+    }
+
+    fireworksCtx.fillStyle = 'rgba(10, 14, 26, 0.1)';
+    fireworksCtx.fillRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+
+    fireworksParticles = fireworksParticles.filter(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += p.gravity;
+        p.life -= p.decay;
+
+        if (p.life <= 0) return false;
+
+        fireworksCtx.beginPath();
+        fireworksCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        fireworksCtx.fillStyle = p.color;
+        fireworksCtx.globalAlpha = p.life;
+        fireworksCtx.shadowBlur = 15;
+        fireworksCtx.shadowColor = p.color;
+        fireworksCtx.fill();
+
+        fireworksCtx.globalAlpha = 1;
+        fireworksCtx.shadowBlur = 0;
+
+        return true;
+    });
+
+    requestAnimationFrame(animateFireworks);
 }
 
 // ==================== EVENT LISTENERS ====================
@@ -1316,6 +1575,8 @@ function setupEventListeners() {
     document.getElementById('randomQuoteBtn').addEventListener('click', sendRandomQuote);
     document.getElementById('sadEmojiBtn').addEventListener('click', () => sendEmoji('😢'));
     document.getElementById('rocketEmojiBtn').addEventListener('click', () => sendEmoji('🚀'));
+    document.getElementById('fireworksBtn').addEventListener('click', sendFireworks);
+    document.getElementById('musicBtn').addEventListener('click', toggleMusic);
 
     // Add coin
     document.getElementById('addCoinBtn').addEventListener('click', showAddCoinModal);

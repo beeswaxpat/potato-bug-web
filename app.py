@@ -187,6 +187,17 @@ async def websocket_endpoint(websocket: WebSocket):
                         "is_bot": True
                     })
 
+            elif data["type"] == "fireworks":
+                # Fireworks trigger - broadcast to all users in the room
+                room_code = room_manager.user_rooms.get(websocket)
+                username = room_manager.usernames.get(websocket, "Unknown")
+                if room_code:
+                    await room_manager.broadcast_to_room(room_code, {
+                        "type": "fireworks",
+                        "username": username,
+                        "timestamp": datetime.now().isoformat()
+                    })
+
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
         await room_manager.leave_room(websocket)

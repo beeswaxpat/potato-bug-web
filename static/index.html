@@ -82,12 +82,19 @@
                 <button id="randomQuoteBtn" class="chat-btn" title="Send random quote">RANDOM</button>
                 <button id="sadEmojiBtn" class="chat-btn emoji-btn" title="Send sad face">😢</button>
                 <button id="rocketEmojiBtn" class="chat-btn emoji-btn" title="Send rocket">🚀</button>
+                <button id="fireworksBtn" class="chat-btn fireworks-btn" title="Trigger fireworks for everyone!">🎆 FIREWORKS</button>
+                <button id="musicBtn" class="chat-btn music-btn" title="Toggle cyberpunk music">🎵 MUSIC</button>
             </div>
             <div class="chat-input-container">
                 <input type="text" id="chatInput" placeholder="Type a message..." maxlength="200">
                 <button id="sendBtn">Send</button>
             </div>
         </section>
+
+        <!-- Hidden audio element for music -->
+        <audio id="synthMusic" loop>
+            <source src="https://www.bensound.com/bensound-music/bensound-cyberpunk.mp3" type="audio/mpeg">
+        </audio>
 
         <!-- Weather Section -->
         <section class="weather-section">
@@ -189,6 +196,9 @@
 
         <!-- News Headlines (bottom ticker) -->
         <div class="news-ticker" id="newsTicker"></div>
+
+        <!-- Fireworks Canvas Overlay -->
+        <canvas id="fireworksCanvas" style="display: none;"></canvas>
     </div>
 
     <script src="/static/script.js"></script>
