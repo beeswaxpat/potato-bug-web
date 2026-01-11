@@ -1764,7 +1764,7 @@ function toggleMusic() {
         // Show cassette player
         cassettePlayer.style.display = 'block';
         loadTrack(currentTrackIndex);
-        addSystemMessage('🎵 Cassette player opened! Hit PLAY ►');
+        // Don't send confusing message - user knows to hit play
     } else {
         // Hide cassette player and stop music
         cassettePlayer.style.display = 'none';
@@ -1773,50 +1773,78 @@ function toggleMusic() {
 }
 
 function loadTrack(index) {
-    const audio = document.getElementById('synthMusic');
-    const track = synthwaveTracks[index];
+    try {
+        const audio = document.getElementById('synthMusic');
+        const track = synthwaveTracks[index];
 
-    audio.src = track.url;
-    audio.load();
-    audio.volume = 0.7;
+        console.log('Loading track:', track.name, 'URL:', track.url);
 
-    document.getElementById('cassetteTrackName').textContent = track.name.toUpperCase();
-    document.getElementById('currentTrackNum').textContent = index + 1;
-    document.getElementById('totalTracks').textContent = synthwaveTracks.length;
+        // Set source and load
+        audio.src = track.url;
+        audio.volume = 0.7;
+        audio.load();
 
-    console.log('Loaded track:', track.name);
+        // Update UI
+        document.getElementById('cassetteTrackName').textContent = track.name.toUpperCase();
+        document.getElementById('currentTrackNum').textContent = index + 1;
+        document.getElementById('totalTracks').textContent = synthwaveTracks.length;
+
+        // Listen for load errors
+        audio.onerror = (e) => {
+            console.error('Audio load error:', e);
+            addSystemMessage('⚠️ Failed to load track. Trying next...');
+            nextTrack();
+        };
+
+        // Listen for successful load
+        audio.onloadeddata = () => {
+            console.log('Track loaded successfully, duration:', audio.duration);
+        };
+
+    } catch (error) {
+        console.error('Error in loadTrack:', error);
+        addSystemMessage('⚠️ Error loading track');
+    }
 }
 
 function playMusic() {
+    console.log('🎵 PLAY BUTTON CLICKED!');
+
     const audio = document.getElementById('synthMusic');
     const playBtn = document.getElementById('playBtn');
     const pauseBtn = document.getElementById('pauseBtn');
     const leftReel = document.getElementById('leftReel');
     const rightReel = document.getElementById('rightReel');
 
-    // Mobile fix: ensure audio is loaded and ready
-    if (audio.readyState < 2) {
-        console.log('Audio not ready, loading...');
-        audio.load();
-
-        // Wait for audio to be ready
-        audio.addEventListener('canplay', function onCanPlay() {
-            audio.removeEventListener('canplay', onCanPlay);
-            playMusic(); // Try again
-        }, { once: true });
+    if (!audio) {
+        console.error('Audio element not found!');
+        addSystemMessage('⚠️ Audio player not found!');
         return;
     }
 
-    // Reset to beginning if at end
+    console.log('Audio state:', {
+        src: audio.src,
+        readyState: audio.readyState,
+        paused: audio.paused,
+        ended: audio.ended,
+        currentTime: audio.currentTime,
+        duration: audio.duration
+    });
+
+    // Provide immediate feedback
+    addSystemMessage('▶️ Attempting to play music...');
+
+    // Reset if ended
     if (audio.ended) {
         audio.currentTime = 0;
     }
 
-    // Mobile requires direct user interaction - try to play
+    // Try to play immediately
     const playPromise = audio.play();
 
     if (playPromise !== undefined) {
         playPromise.then(() => {
+            console.log('✅ MUSIC PLAYING SUCCESSFULLY!');
             isPlaying = true;
             playBtn.style.display = 'none';
             pauseBtn.style.display = 'block';
@@ -1825,19 +1853,19 @@ function playMusic() {
             leftReel.classList.add('spinning');
             rightReel.classList.add('spinning');
 
-            console.log('🎵 Playing:', synthwaveTracks[currentTrackIndex].name);
             addSystemMessage('🎵 Now playing: ' + synthwaveTracks[currentTrackIndex].name);
         }).catch(err => {
-            console.error('Play failed:', err);
+            console.error('❌ PLAY FAILED:', err);
+            console.error('Error name:', err.name);
+            console.error('Error message:', err.message);
 
-            // Show detailed error for debugging
             if (err.name === 'NotAllowedError') {
-                addSystemMessage('⚠️ Please tap PLAY ► to start music (browser requires tap)');
+                addSystemMessage('⚠️ Browser blocked audio. Tap PLAY ► again!');
             } else if (err.name === 'NotSupportedError') {
-                addSystemMessage('⚠️ Audio format not supported. Trying next track...');
-                nextTrack();
+                addSystemMessage('⚠️ Track not supported. Loading next...');
+                setTimeout(() => nextTrack(), 1000);
             } else {
-                addSystemMessage('⚠️ Error: ' + err.message);
+                addSystemMessage('⚠️ Playback error: ' + err.message);
             }
         });
     }
@@ -2378,18 +2406,17 @@ function initArcRaidersIntro() {
     arcIntroCanvas.width = window.innerWidth;
     arcIntroCanvas.height = window.innerHeight;
 
-    // Arc Raiders signature colors ONLY - matching the game exactly
+    // Arc Raiders signature colors ONLY - matching the game exactly (4 arcs)
     const colors = [
         '#00ffff',  // Arc cyan
         '#ffff00',  // Arc yellow
         '#ff6600',  // Arc orange
-        '#00ffff',  // Arc cyan (repeat for consistency)
-        '#ffff00'   // Arc yellow (repeat for consistency)
+        '#00ffff'   // Arc cyan
     ];
 
     // Create curved arc lines from left side (Arc Raiders logo style)
     // Make them bigger and more prominent
-    const numLines = 5;
+    const numLines = 4; // Only 4 arcs
     const spacing = window.innerHeight / (numLines + 2);
 
     for (let i = 0; i < numLines; i++) {
