@@ -116,7 +116,7 @@ let newsHeadlines = [];
 let lastBtcChange = 0;
 
 let quotesEnabled = true;
-let quoteInterval = 3;
+let quoteInterval = 2; // Default 2 minutes
 let vizQuality = 'auto';
 let newsEnabled = true;
 let userZipCode = null;
@@ -143,6 +143,12 @@ let ufoY = 0;
 let ufoVelX = 2;
 let ufoVelY = 1;
 let ufoVisible = false;
+
+// ATH celebration state
+let athCelebrationTriggered = false;
+let athCelebrationActive = false;
+let athGoldenParticles = [];
+let athCelebrationStartTime = 0;
 
 // ==================== ROOM CODE SYSTEM ====================
 
@@ -247,7 +253,7 @@ function loadPersistedData() {
     if (saved) {
         const settings = JSON.parse(saved);
         quotesEnabled = settings.quotesEnabled ?? true;
-        quoteInterval = settings.quoteInterval ?? 3;
+        quoteInterval = settings.quoteInterval ?? 2;
         vizQuality = settings.vizQuality ?? 'auto';
         newsEnabled = settings.newsEnabled ?? true;
         selectedCoins = settings.selectedCoins ?? ['bitcoin', 'ripple'];
@@ -1097,6 +1103,13 @@ function checkMarketConditions() {
     } else if (btcActualAth > 0 && price >= btcActualAth * 0.999) {
         vizMode = 'ath';
         showVizOverlay('⚡ ALL TIME HIGH ⚡');
+
+        // Trigger spectacular ATH celebration (only once per session)
+        if (!athCelebrationTriggered) {
+            triggerATHCelebration(price);
+            athCelebrationTriggered = true;
+        }
+
         sendFrenBotMessage('⚡ BITCOIN AT ALL-TIME HIGH! Current: $' + price.toLocaleString());
     } else if (Math.abs(change) < 2) {
         vizMode = 'calm'; // New mode for stagnant market
@@ -1141,16 +1154,16 @@ function startChatQuoteRotation() {
         }
     }, 5000); // Wait 5 seconds for connection
 
-    // Then every 60 seconds
+    // Then every quoteInterval minutes
     setInterval(() => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
+        if (quotesEnabled && ws && ws.readyState === WebSocket.OPEN) {
             const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
             ws.send(JSON.stringify({
                 type: 'fren_bot',
                 message: `💬 "${quote}"`
             }));
         }
-    }, 60000);
+    }, quoteInterval * 60000); // Convert minutes to milliseconds
 }
 
 // ==================== IMAGE TRIGGERS ====================
@@ -1284,6 +1297,7 @@ function animate() {
     drawParticles();
     drawBitcoinSymbol();
     drawUFO(); // UFO easter egg for fullscreen mode
+    drawATHCelebration(); // Spectacular ATH celebration
 
     if (vizMode !== 'calm' && Math.random() < 0.05 && (vizMode === 'extreme_fear' || vizMode === 'extreme_greed' || vizMode === 'singularity')) {
         drawLightning();
@@ -1732,6 +1746,25 @@ function playMusic() {
     const leftReel = document.getElementById('leftReel');
     const rightReel = document.getElementById('rightReel');
 
+    // Mobile fix: ensure audio is loaded and ready
+    if (audio.readyState < 2) {
+        console.log('Audio not ready, loading...');
+        audio.load();
+
+        // Wait for audio to be ready
+        audio.addEventListener('canplay', function onCanPlay() {
+            audio.removeEventListener('canplay', onCanPlay);
+            playMusic(); // Try again
+        }, { once: true });
+        return;
+    }
+
+    // Reset to beginning if at end
+    if (audio.ended) {
+        audio.currentTime = 0;
+    }
+
+    // Mobile requires direct user interaction - try to play
     const playPromise = audio.play();
 
     if (playPromise !== undefined) {
@@ -1745,14 +1778,25 @@ function playMusic() {
             rightReel.classList.add('spinning');
 
             console.log('🎵 Playing:', synthwaveTracks[currentTrackIndex].name);
+            addSystemMessage('🎵 Now playing: ' + synthwaveTracks[currentTrackIndex].name);
         }).catch(err => {
             console.error('Play failed:', err);
-            addSystemMessage('⚠️ Tap PLAY ► again to start music');
+
+            // Show detailed error for debugging
+            if (err.name === 'NotAllowedError') {
+                addSystemMessage('⚠️ Please tap PLAY ► to start music (browser requires tap)');
+            } else if (err.name === 'NotSupportedError') {
+                addSystemMessage('⚠️ Audio format not supported. Trying next track...');
+                nextTrack();
+            } else {
+                addSystemMessage('⚠️ Error: ' + err.message);
+            }
         });
     }
 
     // Auto-play next track when current ends
     audio.onended = () => {
+        console.log('Track ended, playing next...');
         nextTrack();
     };
 }
@@ -1953,6 +1997,133 @@ function animateFireworks() {
     if (activeParticles > 0 || fireworksCanvas.style.display === 'block') {
         requestAnimationFrame(animateFireworks);
     }
+}
+
+// ==================== ATH CELEBRATION ====================
+
+function triggerATHCelebration(price) {
+    console.log('🎉 TRIGGERING ATH CELEBRATION! Price:', price);
+
+    athCelebrationActive = true;
+    athCelebrationStartTime = Date.now();
+    athGoldenParticles = [];
+
+    // Send celebratory message
+    sendFrenBotMessage('🎊🎉 BITCOIN ALL-TIME HIGH CELEBRATION! 🎉🎊 $' + price.toLocaleString());
+
+    // Create golden rain particles (mobile-safe amount)
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const particleCount = isMobile ? 50 : 100; // Fewer particles on mobile
+
+    for (let i = 0; i < particleCount; i++) {
+        athGoldenParticles.push({
+            x: Math.random() * canvas.width,
+            y: -Math.random() * canvas.height,
+            vx: (Math.random() - 0.5) * 2,
+            vy: 2 + Math.random() * 3,
+            size: 3 + Math.random() * 5,
+            rotation: Math.random() * Math.PI * 2,
+            rotationSpeed: (Math.random() - 0.5) * 0.2,
+            color: Math.random() > 0.5 ? COLORS.gold : COLORS.electric_yellow,
+            life: 1.0
+        });
+    }
+
+    // Auto-disable after 10 seconds to prevent crashes
+    setTimeout(() => {
+        athCelebrationActive = false;
+        athGoldenParticles = [];
+        console.log('ATH celebration ended');
+    }, 10000);
+}
+
+function drawATHCelebration() {
+    if (!athCelebrationActive) return;
+
+    const elapsed = Date.now() - athCelebrationStartTime;
+
+    // Pulsing rainbow background effect
+    const pulseSpeed = 0.003;
+    const hue = (elapsed * pulseSpeed) % 360;
+    ctx.save();
+    ctx.globalAlpha = 0.1;
+    ctx.fillStyle = `hsla(${hue}, 100%, 50%, 0.1)`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    // Draw golden rain particles
+    athGoldenParticles.forEach((p, index) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rotation += p.rotationSpeed;
+        p.vy += 0.05; // Gravity
+
+        // Remove if off screen
+        if (p.y > canvas.height + 50) {
+            athGoldenParticles.splice(index, 1);
+            return;
+        }
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+
+        // Golden star particle
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+            const angle = (i * Math.PI * 2) / 5 - Math.PI / 2;
+            const outerRadius = p.size;
+            const innerRadius = p.size * 0.5;
+
+            const x1 = Math.cos(angle) * outerRadius;
+            const y1 = Math.sin(angle) * outerRadius;
+            const x2 = Math.cos(angle + Math.PI / 5) * innerRadius;
+            const y2 = Math.sin(angle + Math.PI / 5) * innerRadius;
+
+            if (i === 0) ctx.moveTo(x1, y1);
+            else ctx.lineTo(x1, y1);
+            ctx.lineTo(x2, y2);
+        }
+        ctx.closePath();
+
+        ctx.fillStyle = p.color;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = p.color;
+        ctx.fill();
+
+        ctx.restore();
+    });
+
+    ctx.shadowBlur = 0;
+
+    // Rainbow text overlay
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    ctx.save();
+    ctx.font = 'bold 48px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const rainbowText = '⚡ ALL TIME HIGH ⚡';
+    const pulse = 1 + Math.sin(elapsed * 0.005) * 0.3;
+
+    // Rainbow gradient
+    const gradient = ctx.createLinearGradient(centerX - 200, 0, centerX + 200, 0);
+    gradient.addColorStop(0, COLORS.hot_pink);
+    gradient.addColorStop(0.2, COLORS.electric_yellow);
+    gradient.addColorStop(0.4, COLORS.poison_green);
+    gradient.addColorStop(0.6, COLORS.neon_cyan);
+    gradient.addColorStop(0.8, COLORS.arc_purple);
+    gradient.addColorStop(1, COLORS.hot_pink);
+
+    ctx.shadowBlur = 40 * pulse;
+    ctx.shadowColor = COLORS.gold;
+    ctx.fillStyle = gradient;
+    ctx.globalAlpha = 0.8 + Math.sin(elapsed * 0.01) * 0.2;
+    ctx.fillText(rainbowText, centerX, centerY - 50);
+
+    ctx.restore();
 }
 
 // ==================== EVENT LISTENERS ====================

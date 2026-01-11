@@ -1313,16 +1313,19 @@ body.light-mode .chat-btn:hover {
     color: var(--bg-dark) !important;
 }
 
-/* Cassette Tape Player */
+/* Cassette Tape Player - 80s Miami Vice Style */
 .cassette-player {
     position: fixed;
     bottom: 80px;
     right: 20px;
     width: 280px;
-    background: var(--bg-card);
-    border: 1px solid var(--neon-cyan);
+    background: linear-gradient(135deg, #1a0a2e 0%, #2d1b3d 50%, #1a0a2e 100%);
+    border: 2px solid #ff006e;
     z-index: 1000;
-    box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
+    box-shadow:
+        0 0 30px rgba(255, 0, 110, 0.5),
+        0 0 50px rgba(0, 245, 255, 0.3),
+        inset 0 0 20px rgba(255, 0, 110, 0.1);
 }
 
 .cassette-header {
@@ -1330,15 +1333,16 @@ body.light-mode .chat-btn:hover {
     justify-content: space-between;
     align-items: center;
     padding: 8px 10px;
-    background: var(--bg-medium);
-    border-bottom: 1px solid var(--neon-cyan);
+    background: linear-gradient(90deg, #ff006e 0%, #ff4500 50%, #ffff00 100%);
+    border-bottom: 2px solid #00f5ff;
 }
 
 .cassette-title {
     font-size: 11px;
-    color: var(--electric-yellow);
+    color: #000000;
     letter-spacing: 1px;
-    font-weight: 400;
+    font-weight: 700;
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
 }
 
 .cassette-close {
@@ -1353,6 +1357,7 @@ body.light-mode .chat-btn:hover {
 
 .cassette-body {
     padding: 15px;
+    background: linear-gradient(180deg, rgba(255, 0, 110, 0.1) 0%, rgba(0, 245, 255, 0.1) 100%);
 }
 
 .tape-reels {
@@ -1364,10 +1369,13 @@ body.light-mode .chat-btn:hover {
 .reel {
     width: 60px;
     height: 60px;
-    border: 2px solid var(--neon-cyan);
+    border: 3px solid #ff006e;
     border-radius: 50%;
     position: relative;
-    background: var(--bg-dark);
+    background: radial-gradient(circle, #2d1b3d 0%, #0a0e1a 70%);
+    box-shadow:
+        0 0 15px rgba(255, 0, 110, 0.6),
+        inset 0 0 10px rgba(0, 245, 255, 0.3);
 }
 
 .reel-center {
@@ -1377,18 +1385,20 @@ body.light-mode .chat-btn:hover {
     transform: translate(-50%, -50%);
     width: 20px;
     height: 20px;
-    background: var(--neon-cyan);
+    background: linear-gradient(135deg, #ff006e 0%, #ffff00 100%);
     border-radius: 50%;
+    box-shadow: 0 0 10px rgba(255, 255, 0, 0.8);
 }
 
 .reel-spoke {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 2px;
+    width: 3px;
     height: 50%;
-    background: var(--neon-cyan);
+    background: linear-gradient(180deg, #00f5ff 0%, #ff006e 100%);
     transform-origin: top center;
+    box-shadow: 0 0 5px rgba(0, 245, 255, 0.8);
 }
 
 .reel-spoke:nth-child(2) { transform: translate(-50%, 0) rotate(0deg); }
@@ -1412,7 +1422,9 @@ body.light-mode .chat-btn:hover {
 
 .track-counter {
     font-size: 12px;
-    color: var(--neon-cyan);
+    color: #00f5ff;
+    text-shadow: 0 0 10px rgba(0, 245, 255, 0.8);
+    font-weight: 700;
 }
 
 .cassette-controls {
